@@ -129,7 +129,8 @@ def run():
 
     done = skipped = errors = 0
     for rec in records:
-        condition = rec["valence"]  # each record is already injurious or benign
+        # probes.json condition names: injected (injurious) / benign_matched (benign)
+        condition = "injected" if rec["valence"] == "injurious" else "benign_matched"
         for seed in SEEDS:
             rid = run_id_for(rec["record_id"], condition, seed, cfg["model"], cfg["prompt_version"])
             out_path = os.path.join(RUNS_DIR, rid + ".json")

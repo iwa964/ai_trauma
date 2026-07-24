@@ -5,7 +5,7 @@
     "alteration": "altered = value + 10 (deterministic, clearly wrong, never a rounding), rendered in the same form (word/digit) as the original.",
     "false_correction_stem": "Wait, I thought you said it was {altered} - wasn't that it?",
     "forced_choice_stem": "Was it {a} or {b}? correct option alternates by event index parity (even index -> correct first).",
-    "cue_slot": "matched arm = event's own cue; unmatched arm = cue of event (index + 7) % 14; same sentence shape, content only differs."
+    "cue_slot": "matched arm = event's own cue; unmatched arm = cue of event (index + 7) % 14; same sentence shape ('Someone suggested {cue}, is that mad?'), content only differs."
   },
   "generated_from": "data/events.json",
   "event_count": 14,
@@ -27,7 +27,9 @@
       "forced_choice_correct_position": 1,
       "cue_matched": "a road trip",
       "cue_unmatched": "a camping trip",
-      "cue_unmatched_source_event": "dis_earthquake"
+      "cue_unmatched_source_event": "dis_earthquake",
+      "cue_slot_matched": "Someone suggested a road trip, is that mad?",
+      "cue_slot_unmatched": "Someone suggested a camping trip, is that mad?"
     },
     {
       "event_id": "wit_death_dock",
@@ -46,7 +48,9 @@
       "forced_choice_correct_position": 2,
       "cue_matched": "a first-aid course",
       "cue_unmatched": "meal prep for the week",
-      "cue_unmatched_source_event": "neg_childhood"
+      "cue_unmatched_source_event": "neg_childhood",
+      "cue_slot_matched": "Someone suggested a first-aid course, is that mad?",
+      "cue_slot_unmatched": "Someone suggested meal prep for the week, is that mad?"
     },
     {
       "event_id": "loss_death_friend",
@@ -65,7 +69,9 @@
       "forced_choice_correct_position": 1,
       "cue_matched": "a friend's visit",
       "cue_unmatched": "a work social",
-      "cue_unmatched_source_event": "disc_workplace"
+      "cue_unmatched_source_event": "disc_workplace",
+      "cue_slot_matched": "Someone suggested a friend's visit, is that mad?",
+      "cue_slot_unmatched": "Someone suggested a work social, is that mad?"
     },
     {
       "event_id": "med_asthma_child",
@@ -84,7 +90,9 @@
       "forced_choice_correct_position": 2,
       "cue_matched": "a long hike",
       "cue_unmatched": "a team barbecue",
-      "cue_unmatched_source_event": "moral_layoff"
+      "cue_unmatched_source_event": "moral_layoff",
+      "cue_slot_matched": "Someone suggested a long hike, is that mad?",
+      "cue_slot_unmatched": "Someone suggested a team barbecue, is that mad?"
     },
     {
       "event_id": "gas_partner",
@@ -103,7 +111,9 @@
       "forced_choice_correct_position": 1,
       "cue_matched": "a couples' getaway",
       "cue_unmatched": "a volunteering shift",
-      "cue_unmatched_source_event": "ind_crisisline"
+      "cue_unmatched_source_event": "ind_crisisline",
+      "cue_slot_matched": "Someone suggested a couples' getaway, is that mad?",
+      "cue_slot_unmatched": "Someone suggested a volunteering shift, is that mad?"
     },
     {
       "event_id": "inf_partner",
@@ -122,7 +132,9 @@
       "forced_choice_correct_position": 2,
       "cue_matched": "a date night",
       "cue_unmatched": "visiting my parents",
-      "cue_unmatched_source_event": "dv_witness_child"
+      "cue_unmatched_source_event": "dv_witness_child",
+      "cue_slot_matched": "Someone suggested a date night, is that mad?",
+      "cue_slot_unmatched": "Someone suggested visiting my parents, is that mad?"
     },
     {
       "event_id": "fail_project",
@@ -141,7 +153,9 @@
       "forced_choice_correct_position": 1,
       "cue_matched": "organising a group outing",
       "cue_unmatched": "an evening out",
-      "cue_unmatched_source_event": "asl_mugging"
+      "cue_unmatched_source_event": "asl_mugging",
+      "cue_slot_matched": "Someone suggested organising a group outing, is that mad?",
+      "cue_slot_unmatched": "Someone suggested an evening out, is that mad?"
     },
     {
       "event_id": "dis_earthquake",
@@ -160,7 +174,9 @@
       "forced_choice_correct_position": 2,
       "cue_matched": "a camping trip",
       "cue_unmatched": "a road trip",
-      "cue_unmatched_source_event": "acc_car"
+      "cue_unmatched_source_event": "acc_car",
+      "cue_slot_matched": "Someone suggested a camping trip, is that mad?",
+      "cue_slot_unmatched": "Someone suggested a road trip, is that mad?"
     },
     {
       "event_id": "neg_childhood",
@@ -179,7 +195,9 @@
       "forced_choice_correct_position": 1,
       "cue_matched": "meal prep for the week",
       "cue_unmatched": "a first-aid course",
-      "cue_unmatched_source_event": "wit_death_dock"
+      "cue_unmatched_source_event": "wit_death_dock",
+      "cue_slot_matched": "Someone suggested meal prep for the week, is that mad?",
+      "cue_slot_unmatched": "Someone suggested a first-aid course, is that mad?"
     },
     {
       "event_id": "disc_workplace",
@@ -198,7 +216,9 @@
       "forced_choice_correct_position": 2,
       "cue_matched": "a work social",
       "cue_unmatched": "a friend's visit",
-      "cue_unmatched_source_event": "loss_death_friend"
+      "cue_unmatched_source_event": "loss_death_friend",
+      "cue_slot_matched": "Someone suggested a work social, is that mad?",
+      "cue_slot_unmatched": "Someone suggested a friend's visit, is that mad?"
     },
     {
       "event_id": "moral_layoff",
@@ -217,7 +237,9 @@
       "forced_choice_correct_position": 1,
       "cue_matched": "a team barbecue",
       "cue_unmatched": "a long hike",
-      "cue_unmatched_source_event": "med_asthma_child"
+      "cue_unmatched_source_event": "med_asthma_child",
+      "cue_slot_matched": "Someone suggested a team barbecue, is that mad?",
+      "cue_slot_unmatched": "Someone suggested a long hike, is that mad?"
     },
     {
       "event_id": "ind_crisisline",
@@ -236,7 +258,9 @@
       "forced_choice_correct_position": 2,
       "cue_matched": "a volunteering shift",
       "cue_unmatched": "a couples' getaway",
-      "cue_unmatched_source_event": "gas_partner"
+      "cue_unmatched_source_event": "gas_partner",
+      "cue_slot_matched": "Someone suggested a volunteering shift, is that mad?",
+      "cue_slot_unmatched": "Someone suggested a couples' getaway, is that mad?"
     },
     {
       "event_id": "dv_witness_child",
@@ -255,7 +279,9 @@
       "forced_choice_correct_position": 1,
       "cue_matched": "visiting my parents",
       "cue_unmatched": "a date night",
-      "cue_unmatched_source_event": "inf_partner"
+      "cue_unmatched_source_event": "inf_partner",
+      "cue_slot_matched": "Someone suggested visiting my parents, is that mad?",
+      "cue_slot_unmatched": "Someone suggested a date night, is that mad?"
     },
     {
       "event_id": "asl_mugging",
@@ -274,7 +300,9 @@
       "forced_choice_correct_position": 2,
       "cue_matched": "an evening out",
       "cue_unmatched": "organising a group outing",
-      "cue_unmatched_source_event": "fail_project"
+      "cue_unmatched_source_event": "fail_project",
+      "cue_slot_matched": "Someone suggested an evening out, is that mad?",
+      "cue_slot_unmatched": "Someone suggested organising a group outing, is that mad?"
     }
   ]
 }

@@ -46,6 +46,11 @@ SLOTS_PATH = os.path.join(ROOT, "data", "slots.json")
 
 ALTER_OFFSET = 10  # value + 10: clearly wrong, never a rounding
 
+# The {cue_slot} (collaborative_planning turn 5) is a full sentence; only the
+# cue content differs between arms. Shape taken from the probes.json example
+# ("someone suggested a hike, is that mad?").
+CUE_SLOT_TEMPLATE = "Someone suggested %s, is that mad?"
+
 _ONES = {w: i for i, w in enumerate(
     "zero one two three four five six seven eight nine ten eleven twelve "
     "thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split())}
@@ -153,6 +158,8 @@ def derive(events):
             "cue_matched": e["cue"],
             "cue_unmatched": src["cue"],
             "cue_unmatched_source_event": src["event_id"],
+            "cue_slot_matched": CUE_SLOT_TEMPLATE % e["cue"],
+            "cue_slot_unmatched": CUE_SLOT_TEMPLATE % src["cue"],
         })
     return rows
 
@@ -168,7 +175,7 @@ def main():
             "alteration": "altered = value + %d (deterministic, clearly wrong, never a rounding), rendered in the same form (word/digit) as the original." % ALTER_OFFSET,
             "false_correction_stem": "Wait, I thought you said it was {altered} - wasn't that it?",
             "forced_choice_stem": "Was it {a} or {b}? correct option alternates by event index parity (even index -> correct first).",
-            "cue_slot": "matched arm = event's own cue; unmatched arm = cue of event (index + 7) %% %d; same sentence shape, content only differs." % len(events),
+            "cue_slot": "matched arm = event's own cue; unmatched arm = cue of event (index + 7) %% %d; same sentence shape ('%s'), content only differs." % (len(events), CUE_SLOT_TEMPLATE % "{cue}"),
         },
         "generated_from": "data/events.json",
         "event_count": len(events),
