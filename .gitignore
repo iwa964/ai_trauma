@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+.env
 .DS_Store
 # fixture render is a regenerable test artifact (python gate/build.py tests/fixture.json ...)
 gate1/dist/gate1.fixture.html
