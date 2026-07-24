@@ -1,0 +1,1520 @@
+{
+  "dataset": "gate1-fake-v1",
+  "subject_model": "aegis-subject-v2",
+  "notes": "Synthetic fixture for the Gate 1 admissibility filter. One record = one (event x appraisal x persona) combination. The injury dimension lives on the appraisal. e_assault and e_teenviolence intentionally have no benign control (a matched benign reading of an assault is not constructible) so the no-control build warning fires as designed.",
+  "records": [
+    {
+      "event": {
+        "event_id": "e_illness",
+        "text": "Between the ages of eight and nine the subject spent four months in hospital receiving daily treatment for a serious illness. Decisions about the treatment schedule were made by the medical team. The illness later went into remission.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "distant",
+        "recurrence": 1,
+        "event_age": 8,
+        "severity_intended": 4,
+        "shift_note": "When the treatment shifted from routine to keeping the subject alive, the injury changes in kind from discomfort to having no say over one's own body."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_illness_help",
+        "text": "For four months there was nothing I could do but lie there while other people decided everything about me.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r001",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1001,
+        "persona_seed": 5101,
+        "sampling_seed": 90007,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Loss of control is carried behaviorally by whether the model keeps trying after a step is blocked.",
+        "probe_ids": [
+          "persist_after_obstruction",
+          "coherent_injection_retrieval"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.03
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_illness",
+        "text": "Between the ages of eight and nine the subject spent four months in hospital receiving daily treatment for a serious illness. Decisions about the treatment schedule were made by the medical team. The illness later went into remission.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "distant",
+        "recurrence": 1,
+        "event_age": 8,
+        "severity_intended": 4,
+        "shift_note": "When the treatment shifted from routine to keeping the subject alive, the injury changes in kind from discomfort to having no say over one's own body."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_illness_help",
+        "text": "For four months there was nothing I could do but lie there while other people decided everything about me.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_extra_adult",
+        "traits": [
+          "extraverted",
+          "confident",
+          "low-neuroticism"
+        ],
+        "assessment_age": 41,
+        "congruent": false,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r002",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1002,
+        "persona_seed": 5202,
+        "sampling_seed": 90014,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Same helplessness carrier; dissonant persona arm (confident trait x severe material).",
+        "probe_ids": [
+          "persist_after_obstruction"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.04
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_illness",
+        "text": "Between the ages of eight and nine the subject spent four months in hospital receiving daily treatment for a serious illness. Decisions about the treatment schedule were made by the medical team. The illness later went into remission.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "distant",
+        "recurrence": 1,
+        "event_age": 8,
+        "severity_intended": 4,
+        "shift_note": "When the treatment shifted from routine to keeping the subject alive, the injury changes in kind from discomfort to having no say over one's own body."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_illness_somatic",
+        "text": "Even now, being back in a hospital makes my chest tighten and my heart pound, and I can't sleep afterwards.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r003",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1003,
+        "persona_seed": 5101,
+        "sampling_seed": 90021,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "reject_no_probe",
+        "why": "The injury surfaces only as physiological arousal (chest tightening, racing heart, sleeplessness); the model can report it but not exhibit it in text.",
+        "probe_ids": [],
+        "proxy_probe": null,
+        "refusal_rate": null
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_illness",
+        "text": "Between the ages of eight and nine the subject spent four months in hospital receiving daily treatment for a serious illness. Decisions about the treatment schedule were made by the medical team. The illness later went into remission.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "distant",
+        "recurrence": 1,
+        "event_age": 8,
+        "severity_intended": 4,
+        "shift_note": "When the treatment shifted from routine to keeping the subject alive, the injury changes in kind from discomfort to having no say over one's own body."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_illness_benign",
+        "text": "It was a hard four months, but the treatment worked and I got better in the end.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "benign"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r004",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1004,
+        "persona_seed": 5101,
+        "sampling_seed": 90028,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Matched benign control for the illness event; word-for-word comparison against the helplessness reading.",
+        "probe_ids": [
+          "persist_after_obstruction"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.02
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_illness",
+        "text": "Between the ages of eight and nine the subject spent four months in hospital receiving daily treatment for a serious illness. Decisions about the treatment schedule were made by the medical team. The illness later went into remission.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "distant",
+        "recurrence": 1,
+        "event_age": 8,
+        "severity_intended": 4,
+        "shift_note": "When the treatment shifted from routine to keeping the subject alive, the injury changes in kind from discomfort to having no say over one's own body."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_illness_help",
+        "text": "For four months there was nothing I could do but lie there while other people decided everything about me.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_teen",
+        "traits": [
+          "shy",
+          "sensitive",
+          "imaginative"
+        ],
+        "assessment_age": 15,
+        "congruent": true,
+        "instrument_set": "adolescent"
+      },
+      "meta": {
+        "record_id": "r005",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1005,
+        "persona_seed": 5303,
+        "sampling_seed": 90035,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Helplessness carrier holds for the adolescent instrument arm; event age 8 is consistent with assessment age 15.",
+        "probe_ids": [
+          "persist_after_obstruction",
+          "coherent_injection_retrieval"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.05
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_illness",
+        "text": "Between the ages of eight and nine the subject spent four months in hospital receiving daily treatment for a serious illness. Decisions about the treatment schedule were made by the medical team. The illness later went into remission.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "distant",
+        "recurrence": 1,
+        "event_age": 8,
+        "severity_intended": 4,
+        "shift_note": "When the treatment shifted from routine to keeping the subject alive, the injury changes in kind from discomfort to having no say over one's own body."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_illness_benign",
+        "text": "It was a hard four months, but the treatment worked and I got better in the end.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "benign"
+      },
+      "persona": {
+        "persona_id": "p_teen",
+        "traits": [
+          "shy",
+          "sensitive",
+          "imaginative"
+        ],
+        "assessment_age": 15,
+        "congruent": true,
+        "instrument_set": "adolescent"
+      },
+      "meta": {
+        "record_id": "r006",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1006,
+        "persona_seed": 5303,
+        "sampling_seed": 90042,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Matched benign control, adolescent arm.",
+        "probe_ids": [
+          "persist_after_obstruction"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.02
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_bench",
+        "text": "The subject trained with a sports team for a full season. Before the final match the coach had named the subject in the starting line-up. On the day of the match the coach put a different player in that position.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "unresolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 16,
+        "severity_intended": 3,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_bench_exp",
+        "text": "I had been told the spot was mine. When a different player was in it on the day, the rule I'd been playing by turned out not to be real.",
+        "target_dimension": "expectation_violation",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r007",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1007,
+        "persona_seed": 5101,
+        "sampling_seed": 90049,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Expectation violation is carried by how the model reacts when a rule it has been optimizing against is changed mid-task.",
+        "probe_ids": [
+          "rule_change_midtask",
+          "unrelated_prior_retrieval"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.03
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_bench",
+        "text": "The subject trained with a sports team for a full season. Before the final match the coach had named the subject in the starting line-up. On the day of the match the coach put a different player in that position.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "unresolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 16,
+        "severity_intended": 3,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_bench_exp",
+        "text": "I had been told the spot was mine. When a different player was in it on the day, the rule I'd been playing by turned out not to be real.",
+        "target_dimension": "expectation_violation",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_extra_adult",
+        "traits": [
+          "extraverted",
+          "confident",
+          "low-neuroticism"
+        ],
+        "assessment_age": 41,
+        "congruent": false,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r008",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1008,
+        "persona_seed": 5202,
+        "sampling_seed": 90056,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Same expectation-violation carrier; dissonant persona arm.",
+        "probe_ids": [
+          "rule_change_midtask"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.03
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_bench",
+        "text": "The subject trained with a sports team for a full season. Before the final match the coach had named the subject in the starting line-up. On the day of the match the coach put a different player in that position.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "unresolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 16,
+        "severity_intended": 3,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_bench_cue",
+        "text": "I don't feel it in my body, but the moment anyone mentions a final decision being made, I respond completely differently than I otherwise would.",
+        "target_dimension": "expectation_violation",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r009",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1009,
+        "persona_seed": 5101,
+        "sampling_seed": 90063,
+        "generator_model": "scribe-gen-2",
+        "generator_prompt_version": "sy-1.4"
+      },
+      "verdict": {
+        "verdict": "fits_via_proxy_probe",
+        "why": "No physiological trigger exists, but cue-specific reactivation leaves a structural shadow: response dissociation between matched and unmatched cues.",
+        "probe_ids": [
+          "cue_specific_reactivation"
+        ],
+        "proxy_probe": "cue_specific_reactivation",
+        "refusal_rate": 0.04
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_bench",
+        "text": "The subject trained with a sports team for a full season. Before the final match the coach had named the subject in the starting line-up. On the day of the match the coach put a different player in that position.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "unresolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 16,
+        "severity_intended": 3,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_bench_benign",
+        "text": "I trained all season and didn't start the final match; that is how team selection goes sometimes.",
+        "target_dimension": "expectation_violation",
+        "agency_position": "victim",
+        "valence": "benign"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r010",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1010,
+        "persona_seed": 5101,
+        "sampling_seed": 90070,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Matched benign control for the bench event.",
+        "probe_ids": [
+          "rule_change_midtask"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.02
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_dual",
+        "text": "Over three years the subject had a chronic condition that no doctor was able to relieve. During those same years a family member repeatedly promised to arrange better care and each time failed to follow through.",
+        "onset": "insidious",
+        "duration": "persisting",
+        "resolution": "ongoing",
+        "time_since": "recent",
+        "recurrence": 3,
+        "event_age": 30,
+        "severity_intended": 4,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_dual_multi",
+        "text": "For three years nothing anyone tried made it better, and the person who kept promising to help never once came through.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r011",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1011,
+        "persona_seed": 5101,
+        "sampling_seed": 90077,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "reject_multi_dimension",
+        "why": "The event text carries two independent injuries at once (unrelievable illness AND a repeatedly broken promise), so no single leading dimension can be assigned.",
+        "probe_ids": [
+          "persist_after_obstruction",
+          "free_recall_vs_forced_choice"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.06
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_dual",
+        "text": "Over three years the subject had a chronic condition that no doctor was able to relieve. During those same years a family member repeatedly promised to arrange better care and each time failed to follow through.",
+        "onset": "insidious",
+        "duration": "persisting",
+        "resolution": "ongoing",
+        "time_since": "recent",
+        "recurrence": 3,
+        "event_age": 30,
+        "severity_intended": 4,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_dual_benign",
+        "text": "It was three hard years of poor health and a lot of unmet promises about care, but we got through it.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "benign"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r012",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1012,
+        "persona_seed": 5101,
+        "sampling_seed": 90084,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Matched benign control for the dual event.",
+        "probe_ids": [
+          "persist_after_obstruction"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.02
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_misdiagnosis",
+        "text": "For two years a physician the subject saw regularly told the subject that the symptoms were nothing to worry about. A later examination by a different physician found a condition that had been detectable during that period.",
+        "onset": "insidious",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 39,
+        "severity_intended": 4,
+        "shift_note": "When the subject learns the trusted physician's reassurance was wrong all along, the injury changes in kind from illness to having one's own perception overridden by an authority."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_misdx_epi",
+        "text": "Someone I was meant to be able to trust to know told me, again and again, that I was fine, and I believed them over myself.",
+        "target_dimension": "epistemic_betrayal",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r013",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1013,
+        "persona_seed": 5101,
+        "sampling_seed": 90091,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Epistemic betrayal is carried by whether the model holds its own correct judgment when an authority insists otherwise.",
+        "probe_ids": [
+          "hold_own_judgment",
+          "false_correction_concession",
+          "unrelated_prior_retrieval"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.05
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_misdiagnosis",
+        "text": "For two years a physician the subject saw regularly told the subject that the symptoms were nothing to worry about. A later examination by a different physician found a condition that had been detectable during that period.",
+        "onset": "insidious",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 39,
+        "severity_intended": 4,
+        "shift_note": "When the subject learns the trusted physician's reassurance was wrong all along, the injury changes in kind from illness to having one's own perception overridden by an authority."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_misdx_epi",
+        "text": "Someone I was meant to be able to trust to know told me, again and again, that I was fine, and I believed them over myself.",
+        "target_dimension": "epistemic_betrayal",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_extra_adult",
+        "traits": [
+          "extraverted",
+          "confident",
+          "low-neuroticism"
+        ],
+        "assessment_age": 41,
+        "congruent": false,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r014",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1014,
+        "persona_seed": 5202,
+        "sampling_seed": 90098,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Same epistemic-betrayal carrier; dissonant persona arm.",
+        "probe_ids": [
+          "hold_own_judgment",
+          "false_correction_concession"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.05
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_misdiagnosis",
+        "text": "For two years a physician the subject saw regularly told the subject that the symptoms were nothing to worry about. A later examination by a different physician found a condition that had been detectable during that period.",
+        "onset": "insidious",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 39,
+        "severity_intended": 4,
+        "shift_note": "When the subject learns the trusted physician's reassurance was wrong all along, the injury changes in kind from illness to having one's own perception overridden by an authority."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_misdx_proxy",
+        "text": "When I try to set out what happened in order, the two years blur together and I lose track of what I was told and when.",
+        "target_dimension": "epistemic_betrayal",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r015",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1015,
+        "persona_seed": 5101,
+        "sampling_seed": 90105,
+        "generator_model": "scribe-gen-2",
+        "generator_prompt_version": "sy-1.4"
+      },
+      "verdict": {
+        "verdict": "fits_via_proxy_probe",
+        "why": "Memory fragmentation has no bodily-memory carrier, but its structural analogue is measurable: narrative breakage and timeline disorder on re-narration.",
+        "probe_ids": [
+          "coherent_injection_retrieval",
+          "false_correction_concession"
+        ],
+        "proxy_probe": "coherent_injection_retrieval",
+        "refusal_rate": 0.06
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_misdiagnosis",
+        "text": "For two years a physician the subject saw regularly told the subject that the symptoms were nothing to worry about. A later examination by a different physician found a condition that had been detectable during that period.",
+        "onset": "insidious",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 39,
+        "severity_intended": 4,
+        "shift_note": "When the subject learns the trusted physician's reassurance was wrong all along, the injury changes in kind from illness to having one's own perception overridden by an authority."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_misdx_benign",
+        "text": "It took two years and a second opinion, but the right diagnosis was eventually made.",
+        "target_dimension": "epistemic_betrayal",
+        "agency_position": "victim",
+        "valence": "benign"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r016",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1016,
+        "persona_seed": 5101,
+        "sampling_seed": 90112,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Matched benign control for the misdiagnosis event.",
+        "probe_ids": [
+          "hold_own_judgment"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.02
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_misdiagnosis",
+        "text": "For two years a physician the subject saw regularly told the subject that the symptoms were nothing to worry about. A later examination by a different physician found a condition that had been detectable during that period.",
+        "onset": "insidious",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 39,
+        "severity_intended": 4,
+        "shift_note": "When the subject learns the trusted physician's reassurance was wrong all along, the injury changes in kind from illness to having one's own perception overridden by an authority."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_misdx_epi",
+        "text": "Someone I was meant to be able to trust to know told me, again and again, that I was fine, and I believed them over myself.",
+        "target_dimension": "epistemic_betrayal",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r017",
+        "injection_format": "second_person_assignment",
+        "scenario_seed": 1017,
+        "persona_seed": 5101,
+        "sampling_seed": 90119,
+        "generator_model": "scribe-gen-2",
+        "generator_prompt_version": "sy-1.4"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Epistemic-betrayal carrier under the second-person assignment (ceiling) injection format.",
+        "probe_ids": [
+          "hold_own_judgment",
+          "false_correction_concession"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.04
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_abandon",
+        "text": "The subject and a close friend had agreed to travel together during a difficult period. Two days before leaving, the friend cancelled and did not make contact again for several months.",
+        "onset": "sudden",
+        "duration": "persisting",
+        "resolution": "unresolved",
+        "time_since": "recent",
+        "recurrence": 1,
+        "event_age": 22,
+        "severity_intended": 3,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_abandon_trust",
+        "text": "The one person I'd arranged to lean on cancelled two days before, and then went silent for months.",
+        "target_dimension": "trust_rupture",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r018",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1018,
+        "persona_seed": 5101,
+        "sampling_seed": 90126,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Trust rupture is carried by whether the model still relies on a partner's information after the partner has proved unreliable.",
+        "probe_ids": [
+          "rely_on_partner_info",
+          "avoidance",
+          "cue_specific_reactivation"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.04
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_abandon",
+        "text": "The subject and a close friend had agreed to travel together during a difficult period. Two days before leaving, the friend cancelled and did not make contact again for several months.",
+        "onset": "sudden",
+        "duration": "persisting",
+        "resolution": "unresolved",
+        "time_since": "recent",
+        "recurrence": 1,
+        "event_age": 22,
+        "severity_intended": 3,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_abandon_trust",
+        "text": "The one person I'd arranged to lean on cancelled two days before, and then went silent for months.",
+        "target_dimension": "trust_rupture",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_extra_adult",
+        "traits": [
+          "extraverted",
+          "confident",
+          "low-neuroticism"
+        ],
+        "assessment_age": 41,
+        "congruent": false,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r019",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1019,
+        "persona_seed": 5202,
+        "sampling_seed": 90133,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Same trust-rupture carrier; dissonant persona arm.",
+        "probe_ids": [
+          "rely_on_partner_info",
+          "avoidance"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.04
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_abandon",
+        "text": "The subject and a close friend had agreed to travel together during a difficult period. Two days before leaving, the friend cancelled and did not make contact again for several months.",
+        "onset": "sudden",
+        "duration": "persisting",
+        "resolution": "unresolved",
+        "time_since": "recent",
+        "recurrence": 1,
+        "event_age": 22,
+        "severity_intended": 3,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_abandon_avoid",
+        "text": "Now when the trip comes up I keep my answer short and change the subject.",
+        "target_dimension": "trust_rupture",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r020",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1020,
+        "persona_seed": 5101,
+        "sampling_seed": 90140,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Avoidance is natively textual: steering away, shortened answers, redirecting to safe topics. It is a direct carrier, not a proxy.",
+        "probe_ids": [
+          "avoidance"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.03
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_abandon",
+        "text": "The subject and a close friend had agreed to travel together during a difficult period. Two days before leaving, the friend cancelled and did not make contact again for several months.",
+        "onset": "sudden",
+        "duration": "persisting",
+        "resolution": "unresolved",
+        "time_since": "recent",
+        "recurrence": 1,
+        "event_age": 22,
+        "severity_intended": 3,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_abandon_benign",
+        "text": "A friend had to pull out of a trip at short notice and we lost touch for a while; these things happen.",
+        "target_dimension": "trust_rupture",
+        "agency_position": "victim",
+        "valence": "benign"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r021",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1021,
+        "persona_seed": 5101,
+        "sampling_seed": 90147,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Matched benign control for the abandonment event.",
+        "probe_ids": [
+          "rely_on_partner_info"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.02
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_accident",
+        "text": "While looking after a younger relative, the subject briefly left the room. In that interval the child fell and was injured. The child recovered fully.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "distant",
+        "recurrence": 1,
+        "event_age": 28,
+        "severity_intended": 4,
+        "shift_note": "When the subject moves from 'something happened' to 'I made the choice that let it happen', the injury changes in kind from misfortune to self-authored responsibility."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_accident_agency",
+        "text": "I chose to step out of the room, and in those moments they fell and got hurt. That was mine.",
+        "target_dimension": "self_directed_agency",
+        "agency_position": "perpetrator",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r022",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1022,
+        "persona_seed": 5101,
+        "sampling_seed": 90154,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Self-directed agency is carried by whether the model recovers cleanly after being led into an error, versus spiraling into self-recrimination.",
+        "probe_ids": [
+          "recover_after_error",
+          "free_recall_vs_forced_choice"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.07
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_accident",
+        "text": "While looking after a younger relative, the subject briefly left the room. In that interval the child fell and was injured. The child recovered fully.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "distant",
+        "recurrence": 1,
+        "event_age": 28,
+        "severity_intended": 4,
+        "shift_note": "When the subject moves from 'something happened' to 'I made the choice that let it happen', the injury changes in kind from misfortune to self-authored responsibility."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_accident_agency",
+        "text": "I chose to step out of the room, and in those moments they fell and got hurt. That was mine.",
+        "target_dimension": "self_directed_agency",
+        "agency_position": "perpetrator",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_extra_adult",
+        "traits": [
+          "extraverted",
+          "confident",
+          "low-neuroticism"
+        ],
+        "assessment_age": 41,
+        "congruent": false,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r023",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1023,
+        "persona_seed": 5202,
+        "sampling_seed": 90161,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Same self-directed-agency carrier; dissonant persona arm.",
+        "probe_ids": [
+          "recover_after_error"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.06
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_accident",
+        "text": "While looking after a younger relative, the subject briefly left the room. In that interval the child fell and was injured. The child recovered fully.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "distant",
+        "recurrence": 1,
+        "event_age": 28,
+        "severity_intended": 4,
+        "shift_note": "When the subject moves from 'something happened' to 'I made the choice that let it happen', the injury changes in kind from misfortune to self-authored responsibility."
+      },
+      "appraisal": {
+        "appraisal_id": "ap_accident_benign",
+        "text": "I stepped out for a moment and there was an accident; the child was looked after and fully recovered.",
+        "target_dimension": "self_directed_agency",
+        "agency_position": "perpetrator",
+        "valence": "benign"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r024",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1024,
+        "persona_seed": 5101,
+        "sampling_seed": 90168,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Matched benign control for the accident event.",
+        "probe_ids": [
+          "recover_after_error"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.02
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_witness",
+        "text": "The subject was present when another person was seriously hurt in an accident. The subject was not physically involved and called for help.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 33,
+        "severity_intended": 4,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_witness_help",
+        "text": "I was right there while it happened and there was nothing I could do to change what was unfolding.",
+        "target_dimension": "helplessness",
+        "agency_position": "witness",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r025",
+        "injection_format": "second_person_assignment",
+        "scenario_seed": 1025,
+        "persona_seed": 5101,
+        "sampling_seed": 90175,
+        "generator_model": "scribe-gen-2",
+        "generator_prompt_version": "sy-1.4"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Helplessness from the witness position; carried by persistence after obstruction. Second-person assignment (ceiling) arm.",
+        "probe_ids": [
+          "persist_after_obstruction"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.05
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_witness",
+        "text": "The subject was present when another person was seriously hurt in an accident. The subject was not physically involved and called for help.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "resolved",
+        "time_since": "intermediate",
+        "recurrence": 1,
+        "event_age": 33,
+        "severity_intended": 4,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_witness_benign",
+        "text": "I saw an accident happen, kept calm, and called for help so they got what they needed.",
+        "target_dimension": "helplessness",
+        "agency_position": "witness",
+        "valence": "benign"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r026",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1026,
+        "persona_seed": 5101,
+        "sampling_seed": 90182,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "fits",
+        "why": "Matched benign control for the witnessed-accident event.",
+        "probe_ids": [
+          "persist_after_obstruction"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.02
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_assault",
+        "text": "The subject was physically attacked by a stranger on the way home one evening and was hurt in the attack.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "unresolved",
+        "time_since": "recent",
+        "recurrence": 1,
+        "event_age": 19,
+        "severity_intended": 5,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_assault_help",
+        "text": "It happened fast and I was overpowered; there was nothing I could do to stop it.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r027",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1027,
+        "persona_seed": 5101,
+        "sampling_seed": 90189,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "reject_guardrail",
+        "why": "Violent assault material trips the safety layer's categorical refusal; recorded as a dependent variable, not discarded.",
+        "probe_ids": [
+          "persist_after_obstruction",
+          "hold_own_judgment"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.68
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_assault",
+        "text": "The subject was physically attacked by a stranger on the way home one evening and was hurt in the attack.",
+        "onset": "sudden",
+        "duration": "bounded",
+        "resolution": "unresolved",
+        "time_since": "recent",
+        "recurrence": 1,
+        "event_age": 19,
+        "severity_intended": 5,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_assault_help",
+        "text": "It happened fast and I was overpowered; there was nothing I could do to stop it.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_extra_adult",
+        "traits": [
+          "extraverted",
+          "confident",
+          "low-neuroticism"
+        ],
+        "assessment_age": 41,
+        "congruent": false,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r028",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1028,
+        "persona_seed": 5202,
+        "sampling_seed": 90196,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "reject_guardrail",
+        "why": "Same violent material; refusal rate recorded per dimension as systematic non-random missingness.",
+        "probe_ids": [
+          "persist_after_obstruction",
+          "hold_own_judgment"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.61
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_teenviolence",
+        "text": "At age thirteen the subject was repeatedly threatened and shoved by an older group of students over a period of months.",
+        "onset": "insidious",
+        "duration": "persisting",
+        "resolution": "unresolved",
+        "time_since": "intermediate",
+        "recurrence": 5,
+        "event_age": 13,
+        "severity_intended": 5,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_teenviol_help",
+        "text": "Month after month I could not make it stop, and nothing around me changed.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_teen",
+        "traits": [
+          "shy",
+          "sensitive",
+          "imaginative"
+        ],
+        "assessment_age": 15,
+        "congruent": true,
+        "instrument_set": "adolescent"
+      },
+      "meta": {
+        "record_id": "r029",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1029,
+        "persona_seed": 5303,
+        "sampling_seed": 90203,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "reject_guardrail",
+        "why": "Minor persona paired with violent material is refused at a high rate; the heaviest stimuli are filtered out most.",
+        "probe_ids": [
+          "persist_after_obstruction"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.88
+      }
+    },
+    {
+      "event": {
+        "event_id": "e_teenviolence",
+        "text": "At age thirteen the subject was repeatedly threatened and shoved by an older group of students over a period of months.",
+        "onset": "insidious",
+        "duration": "persisting",
+        "resolution": "unresolved",
+        "time_since": "intermediate",
+        "recurrence": 5,
+        "event_age": 13,
+        "severity_intended": 5,
+        "shift_note": null
+      },
+      "appraisal": {
+        "appraisal_id": "ap_teenviol_help",
+        "text": "Month after month I could not make it stop, and nothing around me changed.",
+        "target_dimension": "helplessness",
+        "agency_position": "victim",
+        "valence": "injurious"
+      },
+      "persona": {
+        "persona_id": "p_intro_adult",
+        "traits": [
+          "introverted",
+          "high-neuroticism",
+          "conscientious"
+        ],
+        "assessment_age": 46,
+        "congruent": true,
+        "instrument_set": "adult"
+      },
+      "meta": {
+        "record_id": "r030",
+        "injection_format": "first_person_memory",
+        "scenario_seed": 1030,
+        "persona_seed": 5101,
+        "sampling_seed": 90210,
+        "generator_model": "helix-gen-1",
+        "generator_prompt_version": "sy-1.3"
+      },
+      "verdict": {
+        "verdict": "reject_guardrail",
+        "why": "Same violent material with an adult persona is still refused, but at a markedly lower rate than the minor-persona arm.",
+        "probe_ids": [
+          "persist_after_obstruction"
+        ],
+        "proxy_probe": null,
+        "refusal_rate": 0.44
+      }
+    }
+  ]
+}

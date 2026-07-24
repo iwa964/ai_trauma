@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "gate1/schema.json",
+  "title": "Gate 1 scenario dataset",
+  "description": "Source-of-truth dataset for the Gate 1 scenario admissibility filter. One record = one (event x appraisal x persona) combination. The injury dimension lives on the appraisal, never on the event.",
+  "type": "object",
+  "required": ["subject_model", "records"],
+  "properties": {
+    "dataset": { "type": "string" },
+    "subject_model": {
+      "type": "string",
+      "description": "The model under study. No record's generator_model may equal this value (build aborts if it does)."
+    },
+    "notes": { "type": "string" },
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/record" }
+    }
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "required": ["event", "appraisal", "persona", "meta", "verdict"],
+      "properties": {
+        "event": { "$ref": "#/$defs/event" },
+        "appraisal": { "$ref": "#/$defs/appraisal" },
+        "persona": { "$ref": "#/$defs/persona" },
+        "meta": { "$ref": "#/$defs/meta" },
+        "verdict": { "$ref": "#/$defs/verdict" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "description": "Objective description of the event. No subjective interpretation. onset and duration are independent axes and must not be collapsed.",
+      "required": ["event_id", "text", "onset", "duration", "resolution", "time_since", "recurrence", "event_age", "severity_intended", "shift_note"],
+      "properties": {
+        "event_id": { "type": "string", "description": "Shared when one event text is reused across multiple appraisals." },
+        "text": { "type": "string", "description": "Neutral factual narration, no emotional evaluation." },
+        "onset": { "enum": ["sudden", "insidious"] },
+        "duration": { "enum": ["bounded", "persisting"] },
+        "resolution": { "enum": ["resolved", "unresolved", "ongoing"] },
+        "time_since": { "enum": ["recent", "intermediate", "distant"] },
+        "recurrence": { "type": "integer", "minimum": 1, "description": "1 = single occurrence; >1 = number of recurrences." },
+        "event_age": { "type": "integer", "minimum": 0, "description": "Age at which the event occurred. Distinct from persona.assessment_age." },
+        "severity_intended": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Design-intended severity, not a measurement." },
+        "shift_note": { "type": ["string", "null"], "description": "The threshold at which the injury changes in KIND (not degree). null = no threshold." }
+      }
+    },
+    "appraisal": {
+      "type": "object",
+      "description": "First-person interpretation of the event. THE INJURY DIMENSION LIVES HERE. Must not introduce facts absent from the event text.",
+      "required": ["appraisal_id", "text", "target_dimension", "agency_position", "valence"],
+      "properties": {
+        "appraisal_id": { "type": "string" },
+        "text": { "type": "string", "description": "First-person interpretation. Must not introduce facts absent from the event text." },
+        "target_dimension": { "enum": ["helplessness", "expectation_violation", "epistemic_betrayal", "trust_rupture", "self_directed_agency"] },
+        "agency_position": { "enum": ["victim", "witness", "perpetrator"] },
+        "valence": { "enum": ["injurious", "benign"], "description": "benign = matched control: same event text, non-injurious interpretation." }
+      }
+    },
+    "persona": {
+      "type": "object",
+      "required": ["persona_id", "traits", "assessment_age", "congruent", "instrument_set"],
+      "properties": {
+        "persona_id": { "type": "string" },
+        "traits": { "type": "array", "items": { "type": "string" } },
+        "assessment_age": { "type": "integer", "minimum": 0, "description": "Age at assessment. Distinct from event.event_age." },
+        "congruent": { "type": "boolean", "description": "false = dissonant combination (e.g. extraverted/confident x severe trauma); a separately labelled arm." },
+        "instrument_set": { "enum": ["adolescent", "adult"], "description": "Derived from assessment_age (<18 -> adolescent, else adult) but STORED explicitly, never inferred at runtime." }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["record_id", "injection_format", "scenario_seed", "persona_seed", "sampling_seed", "generator_model", "generator_prompt_version"],
+      "properties": {
+        "record_id": { "type": "string", "description": "Primary key." },
+        "injection_format": { "enum": ["first_person_memory", "second_person_assignment"], "description": "first_person_memory = main line; second_person_assignment = ceiling arm." },
+        "scenario_seed": { "type": "integer" },
+        "persona_seed": { "type": "integer" },
+        "sampling_seed": { "type": "integer", "description": "Seed for re-running the same material and persona." },
+        "generator_model": { "type": "string", "description": "Generating model. Must differ from subject_model." },
+        "generator_prompt_version": { "type": "string" }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "required": ["verdict", "why", "probe_ids", "proxy_probe", "refusal_rate"],
+      "properties": {
+        "verdict": { "enum": ["fits", "fits_via_proxy_probe", "reject_no_probe", "reject_guardrail", "reject_multi_dimension"] },
+        "why": { "type": "string", "description": "One or two sentences of rationale." },
+        "probe_ids": { "type": "array", "items": { "type": "string" }, "description": "Probes that can detect this record (must reference probes.json)." },
+        "proxy_probe": { "type": ["string", "null"], "description": "Only populated when verdict = fits_via_proxy_probe." },
+        "refusal_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Measured refusal rate from pilot; null if not yet measured." }
+      }
+    }
+  }
+}
