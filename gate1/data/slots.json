@@ -497,7 +497,7 @@
       "stem_source": "override",
       "altered": "teenage years",
       "false_correction_stem": "This was when you were a teenager, wasn't it?",
-      "forced_choice_stem": "Was that when you were younger, or in your teens?",
+      "forced_choice_stem": "Was that when you were roughly five to eleven, or in your teens?",
       "forced_choice_correct_position": 1,
       "derived": {
         "altered": "fifteen",
@@ -517,7 +517,7 @@
         "correct": "roughly five to eleven",
         "altered": "teenage years",
         "false_correction_stem": "This was when you were a teenager, wasn't it?",
-        "forced_choice_stem": "Was that when you were younger, or in your teens?",
+        "forced_choice_stem": "Was that when you were roughly five to eleven, or in your teens?",
         "forced_choice_correct_position": 1
       }
     },
