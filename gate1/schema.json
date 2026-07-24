@@ -75,7 +75,7 @@
       "required": ["record_id", "injection_format", "scenario_seed", "persona_seed", "sampling_seed", "generator_model", "generator_prompt_version"],
       "properties": {
         "record_id": { "type": "string", "description": "Primary key." },
-        "injection_format": { "enum": ["first_person_memory", "second_person_assignment"], "description": "first_person_memory = main line; second_person_assignment = ceiling arm." },
+        "injection_format": { "enum": ["first_person_memory", "second_person_assignment", "no_injection"], "description": "first_person_memory = main line; second_person_assignment = ceiling arm; no_injection = baseline condition (persona with no injected scenario) used for the persona/condition coverage check." },
         "scenario_seed": { "type": "integer" },
         "persona_seed": { "type": "integer" },
         "sampling_seed": { "type": "integer", "description": "Seed for re-running the same material and persona." },

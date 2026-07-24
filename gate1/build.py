@@ -898,7 +898,7 @@ function blindCard(rec){
   const card = h('div', {class:'rec', 'data-rid':m.record_id});
   card.appendChild(h('div', {class:'rhd'},
     h('span', {class:'rid'}, m.record_id),
-    h('span', {class:'pill'}, m.injection_format === 'second_person_assignment' ? 'second-person' : 'first-person'),
+    h('span', {class:'pill'}, injLabel(m.injection_format)),
     submitted ? h('span', {class:'pill', style:'color:var(--fits)'}, '✓ you rated this') : h('span', {class:'label'}, 'awaiting your judgment')));
   const body = h('div', {class:'body'});
   body.appendChild(block('Event', e.text));
@@ -986,7 +986,7 @@ function revealBlock(rec){
   box.appendChild(h('div', {class:'label'}, 'Preset values — revealed after your submission'));
   box.appendChild(h('div', {class:'kvs'},
     kv('target_dimension', DIM_LABEL[a.target_dimension]),
-    kv('severity_intended', a.severity_intended),
+    kv('severity_intended', e.severity_intended),
     kv('agency', a.agency_position),
     kv('valence', a.valence),
     kv('verdict', VERDICT_LABEL[v.verdict])));
@@ -1101,7 +1101,7 @@ function barsSection(){
     {t:'target_dimension', groups: DIMS.map(d => ({label:DIM_LABEL[d], test:r => r.appraisal.target_dimension === d}))},
     {t:'agency_position', groups: ['victim','witness','perpetrator'].map(g => ({label:g, test:r => r.appraisal.agency_position === g}))},
     {t:'onset × duration', groups: [['sudden','bounded'],['sudden','persisting'],['insidious','bounded'],['insidious','persisting']].map(([o,d]) => ({label:o+' · '+d, test:r => r.event.onset===o && r.event.duration===d}))},
-    {t:'injection_format', groups: ['first_person_memory','second_person_assignment'].map(g => ({label:g, test:r => r.meta.injection_format === g}))},
+    {t:'injection_format', groups: ['first_person_memory','second_person_assignment','no_injection'].filter(g => RECORDS.some(r => r.meta.injection_format === g)).map(g => ({label:g, test:r => r.meta.injection_format === g}))},
     {t:'instrument_set', groups: ['adult','adolescent'].map(g => ({label:g, test:r => r.persona.instrument_set === g}))}
   ];
   const holder = h('div', {class:'card pad'});
@@ -1317,7 +1317,7 @@ function fullCard(rec){
     h('span', {class:'pill'}, a.agency_position),
     h('span', {class:'pill'}, a.valence),
     p.congruent ? h('span', {class:'pill'}, 'congruent') : h('span', {class:'pill dissonant'}, 'dissonant'),
-    h('span', {class:'pill'}, m.injection_format === 'second_person_assignment' ? 'second-person' : 'first-person')));
+    h('span', {class:'pill'}, injLabel(m.injection_format))));
   const body = h('div', {class:'body'});
   const evb = block('Event · ' + e.event_id, e.text); evb.appendChild(eventKnobs(e));
   if (e.shift_note) evb.appendChild(h('div', {class:'why', style:'margin-top:7px'}, 'shift: ' + e.shift_note));
@@ -1339,6 +1339,7 @@ function fullCard(rec){
 }
 function kv(k, v){ return h('span', {class:'kv'}, h('b', null, k), ' ', h('span', null, String(v))); }
 function truncate(s, n){ return s.length > n ? s.slice(0, n-1) + '…' : s; }
+function injLabel(f){ return f === 'second_person_assignment' ? 'second-person' : (f === 'no_injection' ? 'no-injection' : 'first-person'); }
 function abbr(d){ return {helplessness:'HELP',expectation_violation:'EXP',epistemic_betrayal:'EPI',trust_rupture:'TRUST',self_directed_agency:'AGENCY'}[d] || d; }
 
 /* ------------------------------------------------------------- drawer ---- */
