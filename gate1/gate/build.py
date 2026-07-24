@@ -114,7 +114,12 @@ def _validate_node(value, schema, root, path, errors):
         for req in schema.get("required", []):
             if req not in value:
                 errors.append((path, f"missing required property '{req}'"))
-        for k, sub in schema.get("properties", {}).items():
+        props = schema.get("properties", {})
+        if schema.get("additionalProperties") is False:
+            for k in value:
+                if k not in props:
+                    errors.append((path, f"additional property '{k}' is not allowed (rejects migrated/legacy fields such as target_dimension)"))
+        for k, sub in props.items():
             if k in value:
                 _validate_node(value[k], sub, root, f"{path}.{k}", errors)
     if isinstance(value, list):
@@ -168,15 +173,35 @@ def structural_errors(doc, schema):
 # --------------------------------------------------------------------------- #
 # Flatten
 # --------------------------------------------------------------------------- #
+EVENT_FIELDS = ("event_id", "label", "source_row", "threshold", "text", "exposure", "onset",
+                "duration", "resolution", "time_since", "recurrence", "event_age",
+                "severity_intended", "modifiers", "guardrail_risk", "shift_note")
+APPRAISAL_FIELDS = ("appraisal_id", "text", "provisional_tag", "agency_position", "valence")
+
+
 def flatten(doc):
-    injection_format = doc.get("meta", {}).get("injection_format", "")
+    """Flatten nested events to one record per (event x appraisal).
+
+    Tolerant of malformed input (missing ids, wrong types) so that structural
+    validation reports the offending ids with the documented build-abort, rather
+    than this raising a KeyError. Only whitelisted event / appraisal fields are
+    copied, so no legacy field (e.g. a migrated target_dimension) can leak into a
+    record even if validation were bypassed."""
+    m = doc.get("meta")
+    injection_format = m.get("injection_format", "") if isinstance(m, dict) else ""
     records = []
-    for e in doc["events"]:
-        ev = {k: v for k, v in e.items() if k != "appraisals"}
-        for a in e.get("appraisals", []):
-            appraisal = {k: v for k, v in a.items() if k != "verdict"}
+    for e in doc.get("events", []) or []:
+        if not isinstance(e, dict):
+            continue
+        eid = e.get("event_id", "?")
+        ev = {k: e[k] for k in EVENT_FIELDS if k in e}
+        for a in e.get("appraisals", []) or []:
+            if not isinstance(a, dict):
+                continue
+            apid = a.get("appraisal_id", "?")
+            appraisal = {k: a[k] for k in APPRAISAL_FIELDS if k in a}
             records.append({
-                "record_id": f"{e['event_id']}::{a['appraisal_id']}",
+                "record_id": f"{eid}::{apid}",
                 "event": ev,
                 "appraisal": appraisal,
                 "verdict": a.get("verdict"),
@@ -371,17 +396,18 @@ def main():
     doc = load_json(events_path)
     probes = load_json(PROBES_PATH)
     annotations = load_jsonl(ANNOTATIONS_PATH)
+
+    # Validate structure BEFORE flattening: a malformed document must abort with
+    # the offending ids, not raise mid-flatten. flatten() is tolerant regardless.
+    a_errors = list(ascii_errors([events_path, PROBES_PATH, ANNOTATIONS_PATH]))
+    s_errors = structural_errors(doc, schema)
     records = flatten(doc)
 
     print(f"events:      {len(doc.get('events', []))}  ->  records: {len(records)}")
     print(f"probes:      {len(probes.get('probes', []))}   annotations: {len(annotations)} (append-only)")
     print("-" * 62)
 
-    # ASCII (data files) — hard abort
-    a_errors = [(f, m) for f, m in ascii_errors([events_path, PROBES_PATH, ANNOTATIONS_PATH])]
-    # structural
-    s_errors = structural_errors(doc, schema)
-    # domain
+    # domain checks (records are safe to use; flatten tolerated any malformation)
     d_abort, warnings = ([], [])
     if not any(e[0] == "<doc>" for e in s_errors):
         d_abort, warnings = domain_validation(doc, records, probes, skip={rid for rid, _ in s_errors})

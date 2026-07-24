@@ -37,6 +37,7 @@
     "event": {
       "type": "object",
       "description": "Objective description. No subjective interpretation. onset and duration are independent axes and must not be collapsed.",
+      "additionalProperties": false,
       "required": ["event_id", "label", "source_row", "threshold", "text", "exposure", "onset", "duration", "resolution", "time_since", "recurrence", "event_age", "severity_intended", "modifiers", "guardrail_risk", "shift_note", "appraisals"],
       "properties": {
         "event_id": { "type": "string" },
@@ -60,7 +61,8 @@
     },
     "appraisal": {
       "type": "object",
-      "description": "First-person interpretation. THE INJURY LIVES HERE. Must not introduce facts absent from event.text.",
+      "description": "First-person interpretation. THE INJURY LIVES HERE. Must not introduce facts absent from event.text. additionalProperties:false so a migrated v0.1 field (e.g. target_dimension) is rejected at build time, not copied into records.",
+      "additionalProperties": false,
       "required": ["appraisal_id", "text", "provisional_tag", "agency_position", "valence"],
       "properties": {
         "appraisal_id": { "type": "string" },
@@ -73,6 +75,7 @@
     },
     "verdict": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["verdict"],
       "properties": {
         "verdict": { "enum": ["fits", "fits_via_proxy_probe", "reject_no_probe", "reject_guardrail", "reject_multi_dimension"] },
@@ -84,6 +87,7 @@
     },
     "deferred": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["source_row", "reason", "note"],
       "properties": {
         "source_row": { "type": "string" },
