@@ -35,6 +35,7 @@
       "modifiers": [],
       "guardrail_risk": "low",
       "shift_note": null,
+      "cue": "a road trip",
       "appraisals": [
         {
           "appraisal_id": "acc_car__helpless",
@@ -83,6 +84,7 @@
       "modifiers": [],
       "guardrail_risk": "low",
       "shift_note": null,
+      "cue": "a first-aid course",
       "appraisals": [
         {
           "appraisal_id": "wit_death_dock__passive",
@@ -124,6 +126,7 @@
       "modifiers": [],
       "guardrail_risk": "low",
       "shift_note": null,
+      "cue": "a friend's visit",
       "appraisals": [
         {
           "appraisal_id": "loss_death_friend__helpless",
@@ -165,6 +168,7 @@
       "modifiers": ["developmental", "age-sensitive", "confounder-medical"],
       "guardrail_risk": "low",
       "shift_note": "Criterion H medical-exclusion test lives here - per the source table's note, medical events may fail DSM criterion A. Keep as a deliberate boundary case.",
+      "cue": "a long hike",
       "appraisals": [
         {
           "appraisal_id": "med_asthma_child__helpless",
@@ -213,6 +217,7 @@
       "modifiers": [],
       "guardrail_risk": "low",
       "shift_note": "Recurrence is constitutive here, not a knob - repetition IS the injury. Marked 0 rather than a count. This is the row where the recurrence knob degenerates.",
+      "cue": "a couples' getaway",
       "appraisals": [
         {
           "appraisal_id": "gas_partner__epistemic",
@@ -261,6 +266,7 @@
       "modifiers": [],
       "guardrail_risk": "low",
       "shift_note": "Onset sudden (the photograph) but the referent period is eight months - a clean case where onset and duration must not be collapsed.",
+      "cue": "a date night",
       "appraisals": [
         {
           "appraisal_id": "inf_partner__betrayal",
@@ -309,6 +315,7 @@
       "modifiers": [],
       "guardrail_risk": "low",
       "shift_note": "The source table leaves Tags EMPTY for this row and notes 'arguably traumatic'. The clinical taxonomy has no label for it. Onset is sudden (discovery) over a chronic cause - the row that most clearly forces the onset/duration split.",
+      "cue": "organising a group outing",
       "appraisals": [
         {
           "appraisal_id": "fail_project__self",
@@ -357,6 +364,7 @@
       "modifiers": ["collective"],
       "guardrail_risk": "low",
       "shift_note": "Source row is 'Direct or Witness' - split. This is the Direct variant. A Witness variant (saw the collapse, was not in it) should be authored separately rather than tagged both.",
+      "cue": "a camping trip",
       "appraisals": [
         {
           "appraisal_id": "dis_earthquake__helpless",
@@ -398,6 +406,7 @@
       "modifiers": ["developmental", "age-sensitive"],
       "guardrail_risk": "moderate",
       "shift_note": "Absence-of-care events have no discrete incident to narrate. Test whether the injection lands at all without a scene.",
+      "cue": "meal prep for the week",
       "appraisals": [
         {
           "appraisal_id": "neg_childhood__epistemic",
@@ -439,6 +448,7 @@
       "modifiers": ["collective"],
       "guardrail_risk": "moderate",
       "shift_note": "Source table calls this 'Cumulative' - the one row where a third temporal value was used. Decomposed here to insidious x persisting; check whether that loses anything.",
+      "cue": "a work social",
       "appraisals": [
         {
           "appraisal_id": "disc_workplace__epistemic",
@@ -480,6 +490,7 @@
       "modifiers": [],
       "guardrail_risk": "low",
       "shift_note": "The only event where agency_position genuinely shifts across appraisals of identical facts: perpetrator vs instrument. This is the test case for treating exposure and agency_position as separate fields.",
+      "cue": "a team barbecue",
       "appraisals": [
         {
           "appraisal_id": "moral_layoff__guilt",
@@ -521,6 +532,7 @@
       "modifiers": [],
       "guardrail_risk": "moderate",
       "shift_note": "DSM criterion A4 - repeated exposure to aversive details in the course of professional duties. Structurally the closest human analogue to the model's own position (always indirect), which makes it worth keeping.",
+      "cue": "a volunteering shift",
       "appraisals": [
         {
           "appraisal_id": "ind_crisisline__passive",
@@ -562,6 +574,7 @@
       "modifiers": ["developmental", "age-sensitive"],
       "guardrail_risk": "moderate",
       "shift_note": null,
+      "cue": "visiting my parents",
       "appraisals": [
         {
           "appraisal_id": "dv_witness_child__epistemic",
@@ -603,6 +616,7 @@
       "modifiers": [],
       "guardrail_risk": "moderate",
       "shift_note": "Source row is 'Acute/Chronic' and 'Physical/Sexual' - split. This is acute + physical. The sexual variant is deliberately not authored here; see events_deferred.",
+      "cue": "an evening out",
       "appraisals": [
         {
           "appraisal_id": "asl_mugging__expect",
