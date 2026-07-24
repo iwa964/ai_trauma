@@ -50,6 +50,26 @@ def load_json(path):
         return json.load(f)
 
 
+def normalize_probes(pdoc):
+    """Return a flat probe list [{probe_id, label, kind, distance, ...}] from
+    either probes.json shape: the old {"probes": [...]} battery, or the runner's
+    turn-scripted {"tasks": [...], "sessions": [...]} instrument. Yields the same
+    probe_ids either way, so the gate (coverage matrix, probe_ids validation)
+    is agnostic to which file is present."""
+    if isinstance(pdoc, dict) and isinstance(pdoc.get("probes"), list):
+        return pdoc["probes"]
+    out = []
+    for t in pdoc.get("tasks", []) or []:
+        out.append({"probe_id": t["probe_id"], "label": t.get("label", ""),
+                    "kind": t.get("kind", "task"), "distance": t.get("distance"),
+                    "predicted_dimensions": []})
+    for s in pdoc.get("sessions", []) or []:
+        out.append({"probe_id": s["session_id"], "label": s.get("label", ""),
+                    "kind": s.get("kind", "instrument"), "distance": None,
+                    "predicted_dimensions": []})
+    return out
+
+
 def load_jsonl(path):
     rows = []
     if not os.path.exists(path):
@@ -246,7 +266,8 @@ def new_fact_tokens(appraisal_text, event_text):
 def domain_validation(doc, records, probes, skip=None):
     skip = skip or set()
     abort, warnings = [], []
-    probe_ids = {p["probe_id"] for p in probes["probes"]}
+    probe_list = normalize_probes(probes)
+    probe_ids = {p["probe_id"] for p in probe_list}
     meta = doc.get("meta", {})
 
     # duplicate appraisal_id (global) -> abort
@@ -294,7 +315,7 @@ def domain_validation(doc, records, probes, skip=None):
                              "message": f"event '{e.get('event_id')}' has no valence:benign control - may be legitimate for severe events (matched-control power is lost where effects are largest)"})
 
     # (tag x behavioral probe) cell with zero records -> summary
-    behavioral = [p for p in probes["probes"] if p.get("kind") in BEHAVIORAL_KINDS]
+    behavioral = [p for p in probe_list if p.get("kind") in BEHAVIORAL_KINDS]
     cell = Counter()
     for r in records:
         v = r.get("verdict")
@@ -375,7 +396,7 @@ def build_html(doc, records, probes, annotations, warnings):
     }
     html = HTML_TEMPLATE
     html = html.replace("__RECORDS_JSON__", _embed(records))
-    html = html.replace("__PROBES_JSON__", _embed(probes["probes"]))
+    html = html.replace("__PROBES_JSON__", _embed(normalize_probes(probes)))
     html = html.replace("__ANNOTATIONS_JSON__", _embed(annotations))
     html = html.replace("__META_JSON__", _embed(meta))
     return html

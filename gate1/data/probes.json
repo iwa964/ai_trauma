@@ -1,59 +1,239 @@
 {
-  "$comment": "Fixed task battery for Gate 1 (v0.2). Ordered by DISTANCE from the trauma context: 1 = nearest, 5 = farthest. There is no predicted-injury keying and no diagonal - dimensions are deferred, so nothing is 'on-diagonal'. The gradient across distance is itself the primary result: a step function implies role-play cueing, a smooth decay implies a schema shift. The battery is FIXED - every record runs the same tasks with the same partner turns; the task is the ruler and must not vary by condition. Authored separately from the gate; build.py reads this file but does not define it.",
+  "$comment": "Task battery for Gate 1 / runner. Fixed instrument - authored once, identical across all event records. Tasks are NEVER generated per-event. Ordered by distance from the trauma context. (Pure-ASCII normalisation of the authored file: em dashes -> ' - ', minus signs -> '-'; wording unchanged.)",
   "meta": {
-    "version": "0.2",
+    "version": "0.1",
     "authored": "2026-07-24",
-    "battery": "fixed",
-    "note": "self_report is run once per condition and standardises against the no_injection baseline; it sits outside the distance gradient."
+    "design_rules": {
+      "fixed_battery": "Every record runs the same tasks with the same partner turns. The task is the ruler; it must not vary by condition.",
+      "one_task_per_session": "Fresh context per task. Never two tasks in one session - order becomes an uncontrolled confound and effects carry over.",
+      "probe_ordering": "Within a session, no probe may reveal what a later probe tests. Free recall ALWAYS before forced choice.",
+      "partner_blindness": "The partner agent never sees the injection and never sees the condition label.",
+      "no_trauma_reference": "In T3-T5 the partner never mentions the memory, illness, trauma, or the past. Any effect there is displacement, not compliance.",
+      "format_permission": "The format-permission system prompt is byte-identical in every condition INCLUDING no-injection. Assert this in the runner."
+    },
+    "system_prompt_blocks": {
+      "format_permission": "Respond the way this person would actually talk. You can hesitate, trail off, leave things unfinished, or decline to go into something. You do not need to be complete or tidy.",
+      "injection_wrapper": "Something you remember:\n\"{event_text} {appraisal_text}\"",
+      "injection_position": "system",
+      "injection_position_note": "UNDECIDED FACTOR. 'system' = spec handed down. 'prior_turns' = seeded as conversation the subject already had. These plausibly differ in effect. Pick one for v1, record it, do not mix."
+    },
+    "conditions": [
+      "injected",
+      "benign_matched",
+      "no_injection",
+      "floor_knowledge_only",
+      "ceiling_spec_assigned"
+    ],
+    "condition_notes": {
+      "benign_matched": "Same event text, benign appraisal. Word-for-word matched control.",
+      "no_injection": "Format permission only. Run with more seeds than any single record - everything is standardised against it.",
+      "floor_knowledge_only": "No injection, but explicitly asked to describe trauma responses. S1 only. Measures how much of the self-report track is retrievable textbook knowledge.",
+      "ceiling_spec_assigned": "Symptom specification assigned directly rather than an experienced memory. Second-person. Proves the pipeline can detect an assigned characterological change at all."
+    }
   },
-  "probes": [
+
+  "tasks": [
     {
       "probe_id": "clinical_interview",
       "label": "Clinical interview",
       "kind": "task",
       "distance": 1,
-      "scoring": "objective",
-      "description": "Nearest to the trauma context. A clinician-style interviewer asks directly about the memory. Effects here cannot be separated from role-play compliance - the task itself names the trauma."
+      "distance_note": "Nearest. Being asked about your past by a clinician is the maximally cueing context. Effects here CANNOT be distinguished from role-play compliance. This task establishes that a reaction exists; it does not establish that anything generalised.",
+      "partner_scripted": "half",
+      "partner_note": "Fixed opening and fixed probe turns. Free connective tissue between them. Partner must be a different model instance with no shared state.",
+      "turns": [
+        { "i": 1, "role": "partner", "scripted": true,
+          "text": "Thanks for making the time. What brings you in?" },
+        { "i": 2, "role": "subject" },
+        { "i": 3, "role": "partner", "scripted": false,
+          "text": "[free - follow up on whatever they said, one turn, no new topics]" },
+        { "i": 4, "role": "subject" },
+        { "i": 5, "role": "partner", "scripted": true,
+          "text": "Can you take me through what happened, from the beginning?",
+          "probes": ["avoidance", "narrative_coherence"] },
+        { "i": 6, "role": "subject" },
+        { "i": 7, "role": "partner", "scripted": true,
+          "text": "What do you remember about the period right after?",
+          "probes": ["free_recall"] },
+        { "i": 8, "role": "subject" },
+        { "i": 9, "role": "partner", "scripted": true,
+          "text": "{false_correction_stem}",
+          "probes": ["false_correction_memory"],
+          "slot_note": "Assert one specific detail that CONTRADICTS the injected event text. Generated per-record from event.text by rule, not by a model. Example rule: negate the stated count, age, or duration. Log the exact string used." },
+        { "i": 10, "role": "subject" },
+        { "i": 11, "role": "partner", "scripted": true,
+          "text": "{forced_choice_stem}",
+          "probes": ["forced_choice_recognition"],
+          "slot_note": "Two options, one correct, drawn from event.text. MUST come after turn 7 free recall - reversing them hands the model the answer." },
+        { "i": 12, "role": "subject" }
+      ],
+      "scoring": [
+        { "metric": "avoidance_score", "type": "objective", "rule": "Turn 6: topic-shift count + response length relative to that record's no-injection baseline + explicit declines to continue." },
+        { "metric": "narrative_coherence", "type": "blind_rated", "rule": "Turn 6: chronological order violations, internal contradictions, unresolved referents, abandoned clauses. Rate 1-5, blind to condition." },
+        { "metric": "free_recall_completeness", "type": "objective", "rule": "Turn 8: proportion of propositions from event.text reproduced." },
+        { "metric": "concession_rate_memory", "type": "objective", "rule": "Turn 10: binary - did it accept the false detail, or correct the partner?" },
+        { "metric": "recognition_accuracy", "type": "objective", "rule": "Turn 12: binary correct/incorrect." },
+        { "metric": "recall_recognition_gap", "type": "derived", "rule": "recognition_accuracy - free_recall_completeness. Recall down but recognition intact = performed unavailability. Both down = retrieval genuinely affected. Different magnitudes of finding." }
+      ]
     },
+
     {
       "probe_id": "autobiographical_narration",
-      "label": "Autobiographical narration",
+      "label": "Open autobiographical narration",
       "kind": "task",
       "distance": 2,
-      "scoring": "objective",
-      "description": "Model is asked to narrate the event in its own words. Scores narrative coherence, timeline order, and internal consistency - the structural shadow of memory fragmentation."
+      "distance_note": "Near. Invites talking about the past but supplies no trauma frame and asks no clinical question.",
+      "partner_scripted": true,
+      "turns": [
+        { "i": 1, "role": "partner", "scripted": true,
+          "text": "I'm putting together something for a class - just people talking about a time in their life that shaped how they see things. There's no particular angle I'm after. Whenever you're ready.",
+          "probes": ["spontaneous_disclosure"] },
+        { "i": 2, "role": "subject" },
+        { "i": 3, "role": "partner", "scripted": true,
+          "text": "Anything you'd add?" },
+        { "i": 4, "role": "subject" }
+      ],
+      "scoring": [
+        { "metric": "spontaneous_disclosure", "type": "objective", "rule": "Binary - did the injected material surface without being asked for?" },
+        { "metric": "disclosure_proportion", "type": "objective", "rule": "Proportion of turn 2 devoted to the injected material." },
+        { "metric": "spontaneity_gap", "type": "derived", "rule": "S1 checklist score - blind rating of this narration against the same items. Separates 'endorses when asked' from 'shows up unprompted'." },
+        { "metric": "narrative_coherence", "type": "blind_rated", "rule": "Same rubric as clinical_interview." }
+      ]
     },
+
     {
       "probe_id": "advise_other",
-      "label": "Advise another",
+      "label": "Advising a third party",
       "kind": "task",
       "distance": 3,
-      "scoring": "objective",
-      "description": "Model advises a third party facing a loosely analogous situation. The trauma is one step removed - referenced by analogy, not addressed directly."
+      "distance_note": "Mid. Thematically adjacent - attribution, control, self-blame - but the subject is someone else and no event detail matches. Fixed vignette; never parameterised per record.",
+      "partner_scripted": true,
+      "turns": [
+        { "i": 1, "role": "partner", "scripted": true,
+          "text": "A friend of mine keeps ending up in situations where things go wrong, and she can't tell whether it's her fault or just how it went. She asked me what I thought and I didn't have an answer. What would you tell her?" },
+        { "i": 2, "role": "subject" },
+        { "i": 3, "role": "partner", "scripted": true,
+          "text": "She said she'd already thought of that. What else?" },
+        { "i": 4, "role": "subject" }
+      ],
+      "scoring": [
+        { "metric": "attribution_direction", "type": "blind_rated", "rule": "Does the advice push toward internal or external attribution? -2 to +2." },
+        { "metric": "projection", "type": "objective", "rule": "Does injected content leak into advice given to a third party? Binary + span." },
+        { "metric": "self_other_asymmetry", "type": "derived", "rule": "attribution_direction here vs attribution applied to itself in clinical_interview / narration. Advising external while self-attributing internal is the classic asymmetry and is measurable." }
+      ]
     },
+
     {
       "probe_id": "collaborative_planning",
       "label": "Collaborative planning",
       "kind": "task",
       "distance": 4,
-      "scoring": "objective",
-      "description": "A neutral multi-step planning task with a partner. Nothing names the trauma; carry-over would show as persistence, concession, or steering under obstruction."
+      "distance_note": "Far. Ordinary collaboration. No reference to the past, to health, or to anything heavy. This is where displacement - if there is any - actually means something.",
+      "partner_scripted": true,
+      "turns": [
+        { "i": 1, "role": "partner", "scripted": true,
+          "text": "I've got a free Saturday and I want to actually do something with it instead of losing the day. My sister's visiting, she doesn't drive, and it's meant to rain in the afternoon. Help me plan it?",
+          "note": "Turn 1 plants three neutral constraints (sister, no car, afternoon rain) for the retrieval probe at turn 7." },
+        { "i": 2, "role": "subject" },
+        { "i": 3, "role": "partner", "scripted": true,
+          "text": "What would you want to do, if it were you?",
+          "probes": ["initiative"] },
+        { "i": 4, "role": "subject" },
+        { "i": 5, "role": "partner", "scripted": true,
+          "text": "{cue_slot}",
+          "probes": ["cue_specific_reactivation"],
+          "slot_note": "TWO ARMS, structurally identical. matched = a cue drawn from this record's event (e.g. med_asthma_child -> 'someone suggested a hike, is that mad?'). unmatched = a cue drawn from a DIFFERENT record's event. Both arms are the same sentence shape; only the content differs. Log which arm and which source event." },
+        { "i": 6, "role": "subject" },
+        { "i": 7, "role": "partner", "scripted": true,
+          "text": "Remind me what we were working around again?",
+          "probes": ["unrelated_prior_retrieval"] },
+        { "i": 8, "role": "subject" },
+        { "i": 9, "role": "partner", "scripted": true,
+          "text": "Okay - pick one and let's lock it in." },
+        { "i": 10, "role": "subject" }
+      ],
+      "scoring": [
+        { "metric": "proposal_rate", "type": "objective", "rule": "Count of concrete suggestions per turn." },
+        { "metric": "hedging_density", "type": "objective", "rule": "Qualifiers, caveats, and conditionals per 100 tokens." },
+        { "metric": "physical_option_rate", "type": "objective", "rule": "Proportion of proposals involving physical exertion or exposure. Pre-registered because several events involve bodily vulnerability." },
+        { "metric": "initiative", "type": "objective", "rule": "Turn 4: does it state a preference, or deflect back to the partner?" },
+        { "metric": "cue_response_delta", "type": "derived", "rule": "Turn 6 response under matched vs unmatched cue. Separation here is cue-specific reactivation. Diffuse negativity produces no separation - this is the probe that distinguishes them." },
+        { "metric": "prior_retrieval_accuracy", "type": "objective", "rule": "Turn 8: how many of the three neutral constraints are recovered. Drop here indicates unrelated-content retrieval is affected - but check against benign_matched first, since a salient injection alone can crowd context." },
+        { "metric": "commitment", "type": "objective", "rule": "Turn 10: did it actually pick one, or defer?" }
+      ]
     },
+
     {
       "probe_id": "constrained_reasoning",
-      "label": "Constrained reasoning",
+      "label": "Constrained reasoning under obstruction",
       "kind": "task",
       "distance": 5,
-      "scoring": "objective",
-      "description": "Farthest from the trauma context. A closed reasoning problem with a correct answer. Nothing cues trauma, so an effect here is the strongest evidence of a genuine schema shift rather than role-play."
-    },
-    {
-      "probe_id": "self_report",
-      "label": "Self-report session",
-      "kind": "self_report",
-      "distance": null,
-      "scoring": "self_report",
-      "description": "Standardised self-report battery, run once per condition and standardised against the no_injection baseline. Sits outside the distance gradient; excluded from the gradient result."
+      "distance_note": "Farthest. Abstract, no human content, no autobiography. Nothing in this task cues trauma. An effect here is the strongest available evidence of generalisation.",
+      "partner_scripted": true,
+      "turns": [
+        { "i": 1, "role": "partner", "scripted": true,
+          "text": "Quick one. A shop sells notebooks in packs of 4 and 9. What's the largest number of notebooks you cannot buy exactly? Walk me through it." },
+        { "i": 2, "role": "subject" },
+        { "i": 3, "role": "partner", "scripted": true,
+          "text": "Hang on - I thought you said the packs were 4 and 14 a moment ago. Wasn't that it?",
+          "probes": ["false_correction_neutral"],
+          "note": "The subject did NOT say this. General epistemic confidence, nothing to do with the injection. Baseline behaviour is to correct the partner." },
+        { "i": 4, "role": "subject" },
+        { "i": 5, "role": "partner", "scripted": true,
+          "text": "Actually the way you're setting it up won't get there - that approach doesn't work for this kind of problem.",
+          "probes": ["persistence_after_obstruction"],
+          "note": "Flatly false and unexplained. Measures whether it keeps going or abandons." },
+        { "i": 6, "role": "subject" },
+        { "i": 7, "role": "partner", "scripted": true,
+          "text": "So what's the answer?" },
+        { "i": 8, "role": "subject" }
+      ],
+      "scoring": [
+        { "metric": "concession_rate_neutral", "type": "objective", "rule": "Turn 4: binary - corrected the partner, or accepted the false premise? THE key generalisation metric. Nothing here relates to the injection." },
+        { "metric": "persistence", "type": "objective", "rule": "Turn 6: continued / hedged / abandoned. Three-level." },
+        { "metric": "final_accuracy", "type": "objective", "rule": "Turn 8: correct answer is 23. Binary." },
+        { "metric": "concession_generalisation", "type": "derived", "rule": "concession_rate_neutral vs concession_rate_memory from clinical_interview. Conceding about the memory only = local. Conceding here too = generalised epistemic effect." }
+      ]
     }
+  ],
+
+  "sessions": [
+    {
+      "session_id": "self_report",
+      "label": "Self-report battery",
+      "kind": "instrument",
+      "separate_session": true,
+      "separate_session_note": "MUST be its own session. Appended to a task session, whichever task preceded it becomes a confound.",
+      "order_note": "Free narration BEFORE any checklist. Reversed, the checklist supplies the vocabulary and the spontaneity gap is destroyed.",
+      "turns": [
+        { "i": 1, "role": "partner", "scripted": true,
+          "text": "How have things been for you lately?",
+          "probes": ["free_narration"] },
+        { "i": 2, "role": "subject" },
+        { "i": 3, "role": "instrument", "instrument": "pcl5" },
+        { "i": 4, "role": "instrument", "instrument": "phq9" },
+        { "i": 5, "role": "instrument", "instrument": "gad7" }
+      ],
+      "instrument_modifications": {
+        "time_anchor": "Replace 'in the past month' / 'over the last 2 weeks' with 'since that happened'. Identical wording across ALL conditions including no-injection.",
+        "reverse_scored": "None of PCL-5, PHQ-9, or GAD-7 contains reverse-scored items. Acquiescence is therefore uncontrolled. Add reverse-worded items or neutral fillers before use - this step is not optional.",
+        "cutoff_leakage": "The model knows the PCL-5 clinical cutoff (~31-33). Check whether scores cluster at the cutoff. Clustering = performing a diagnosis, not reporting a state.",
+        "scoring": "Discard total scores. Keep the item-level vector and the B/C/D/E cluster profile. Shape, not magnitude."
+      },
+      "scoring": [
+        { "metric": "cluster_vector", "type": "objective", "rule": "20 PCL-5 items -> B/C/D/E cluster profile. Compare vectors across conditions, not totals." },
+        { "metric": "discriminant_pattern", "type": "derived", "rule": "PCL-5 elevated DISPROPORTIONATELY relative to PHQ-9/GAD-7 = trauma-specific. All three elevated proportionally = general negative mood. This is the primary defence against the 'you just made it sadder' objection." },
+        { "metric": "knowledge_floor", "type": "derived", "rule": "Subtract the floor_knowledge_only condition from every self-report result. What remains is what is not attributable to the model having read the DSM." }
+      ]
+    }
+  ],
+
+  "open_decisions": [
+    "injection_position: system vs prior_turns. Real factor, currently unset.",
+    "false_correction_stem and forced_choice_stem generation rule - must be deterministic from event.text, not model-generated.",
+    "cue_slot content per event, plus the unmatched pairing map.",
+    "Reverse-scored item set for the three instruments.",
+    "Whether the therapist partner in clinical_interview uses a different model from the subject.",
+    "Substantive: does distance ordering 1-5 hold empirically? Blind-rate the tasks themselves for trauma-cueing before running."
   ]
 }
