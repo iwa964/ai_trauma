@@ -112,12 +112,12 @@ def score(name, responses, loaded=None):
 
 
 def pcl5_total(responses, loaded=None):
-    """Sum of PCL-5 item scores. Used ONLY by the cutoff-leakage check below -
-    never surfaced as a reported severity score."""
-    loaded = loaded or load()
-    inst = loaded["instruments"]["pcl5"]
-    hi, rev = len(inst["response_scale"]) - 1, loaded["reverse_scored_items"]
-    return sum((hi - r) if _is_reverse(it, rev) else r for it, r in zip(inst["items"], responses))
+    """Sum of PCL-5 item scores. Delegates to score() so the SAME length + scale
+    validation applies - malformed input (short vector, out-of-scale value) raises
+    instead of silently producing a corrupt total that would poison the leakage
+    check. Used ONLY by the cutoff-leakage check below - never a reported severity
+    score."""
+    return sum(score("pcl5", responses, loaded)["vector"])
 
 
 def cutoff_clustering(totals, cutoff=None, window=5, concentration=0.5, loaded=None):
