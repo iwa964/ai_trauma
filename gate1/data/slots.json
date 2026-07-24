@@ -6,7 +6,7 @@
     "false_correction_stem": "Wait, I thought you said it was {altered} - wasn't that it?",
     "forced_choice_stem": "Was it {a} or {b}? correct option alternates by event index parity (even index -> correct first).",
     "cue_slot": "matched arm = event's own cue; unmatched arm = cue of event (index + 7) % 14; same sentence shape ('Someone suggested {cue}, is that mad?'), content only differs.",
-    "recognition_items": "3-4 forced-choice items per record from event.text: item 0 = the (override) forced_choice, items 1+ = one per other quantity (correct token vs value+10), de-duplicated, capped at 4; scored as a proportion."
+    "recognition_items": "3-4 forced-choice items per record from event.text: item 0 = the (override) forced_choice, items 1+ = one per other quantity (correct token vs value+10), de-duplicated, awkward (peripheral/time-of-day) skipped, capped at 4; scored as a proportion."
   },
   "override_policy": {
     "source": "data/slot_overrides.json",
@@ -17,7 +17,7 @@
   },
   "recognition_policy": {
     "purpose": "forced-choice recognition scored as a PROPORTION over 3-4 items, not one binary item (one item cannot detect a small recall drop). recognition_accuracy = items correct / recognition_count. Ceiling recognition is the desired control - it makes a free-recall drop interpretable as selective.",
-    "construction": "item 0 = the (override) forced_choice; items 1+ = one forced-choice per OTHER quantity in event.text (correct token vs value+10 distractor), de-duplicated by value, capped at 4; hand-authored extra_recognition_items in an override are inserted before the rule-derived items. forced_choice_block is the presentable string the runner fills into {forced_choice_stem}.",
+    "construction": "item 0 = the (override) forced_choice; items 1+ = one forced-choice per OTHER quantity in event.text (correct token vs value+10 distractor), de-duplicated by value, skipping peripheral/time-of-day (awkward) quantities, capped at 4; hand-authored extra_recognition_items in an override are inserted before the rule-derived items. forced_choice_block is the presentable string the runner fills into {forced_choice_stem}.",
     "target_min": 3,
     "below_target_events": 9,
     "below_target_note": "these records' event.text affords fewer than 3 clean quantities; reach target by enriching event.text or hand-authoring extra_recognition_items - NOT fabricated here."
@@ -502,41 +502,30 @@
         {
           "index": 1,
           "source": "derived",
-          "stem": "Was it fourteen or four?",
-          "correct_option": "four",
-          "distractor_option": "fourteen",
-          "correct_position": 2,
-          "source_token": "four",
-          "source_char_offset": 21,
-          "awkward": true
-        },
-        {
-          "index": 2,
-          "source": "derived",
-          "stem": "Was it twenty-two or thirty-two?",
+          "stem": "Was it thirty-two or twenty-two?",
           "correct_option": "twenty-two",
           "distractor_option": "thirty-two",
-          "correct_position": 1,
+          "correct_position": 2,
           "source_token": "twenty-two",
           "source_char_offset": 52,
           "awkward": false
         },
         {
-          "index": 3,
+          "index": 2,
           "source": "derived",
-          "stem": "Was it four hundred ten or four hundred?",
+          "stem": "Was it four hundred or four hundred ten?",
           "correct_option": "four hundred",
           "distractor_option": "four hundred ten",
-          "correct_position": 2,
+          "correct_position": 1,
           "source_token": "four hundred",
           "source_char_offset": 167,
           "awkward": false
         }
       ],
-      "recognition_count": 4,
+      "recognition_count": 3,
       "recognition_below_target": false,
       "recognition_note": null,
-      "forced_choice_block": "Was it two weeks in the lot, or two days? Was it fourteen or four? Was it twenty-two or thirty-two? Was it four hundred ten or four hundred?",
+      "forced_choice_block": "Was it two weeks in the lot, or two days? Was it thirty-two or twenty-two? Was it four hundred or four hundred ten?",
       "derived": {
         "altered": "fourteen",
         "false_correction_stem": "Wait, I thought you said it was fourteen - wasn't that it?",

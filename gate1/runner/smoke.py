@@ -163,8 +163,26 @@ def run_session(turns, record, condition, seed, subject_cfg, partner_cfg, slots,
     return transcript, slot_log, subj
 
 
-def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version, injection_position):
-    key = "|".join([record_id, task_id, condition, str(seed), model_id, prompt_version, injection_position])
+def build_signature(slots_row, pdoc, instruments):
+    """8-char hash of every deterministic input that shapes the subject-facing
+    prompts: the slot fills, the instrument items, the scripted turns, and the
+    injection blocks. Folded into run_id so a change to ANY of them invalidates
+    cached smoke transcripts - otherwise the exists-branch would 'verify' the new
+    prompts by replaying old ones (prompt_version alone does not bump for slot or
+    instrument content changes)."""
+    blob = json.dumps({
+        "slots": slots_row,
+        "instruments": instruments["instruments"],
+        "tasks": pdoc.get("tasks"),
+        "sessions": pdoc.get("sessions"),
+        "format_permission": inject.FORMAT_PERMISSION,
+        "injection_wrapper": inject.INJECTION_WRAPPER,
+    }, sort_keys=True, ensure_ascii=True)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:8]
+
+
+def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version, injection_position, build_sig):
+    key = "|".join([record_id, task_id, condition, str(seed), model_id, prompt_version, injection_position, build_sig])
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
@@ -192,15 +210,16 @@ def run():
     pdoc = json.load(open(PROBES_PATH, encoding="utf-8"))
     sessions = [(t["probe_id"], t["turns"]) for t in pdoc["tasks"]] + \
                [(s["session_id"], s["turns"]) for s in pdoc["sessions"]]
+    build_sig = build_signature(slots, pdoc, self_report.load())
     os.makedirs(RUNS_DIR, exist_ok=True)
-    print("smoke: record=%s | subject=%s(%s) partner=%s(%s) | injection_position=%s | seed=%d" % (
+    print("smoke: record=%s | subject=%s(%s) partner=%s(%s) | injection_position=%s | build=%s | seed=%d" % (
         record_id, subject_cfg["model"], subject_cfg["provider"],
-        partner_cfg["model"], partner_cfg["provider"], position, SEED))
+        partner_cfg["model"], partner_cfg["provider"], position, build_sig, SEED))
 
     instr_seen = collections.defaultdict(set)  # instrument -> {texts}; must stay size 1 across conditions
     for condition in CONDITIONS:
         for task_id, turns in sessions:
-            rid = run_id_for(record_id, task_id, condition, SEED, subject_cfg["model"], subject_cfg["prompt_version"], position)
+            rid = run_id_for(record_id, task_id, condition, SEED, subject_cfg["model"], subject_cfg["prompt_version"], position, build_sig)
             out_path = os.path.join(RUNS_DIR, rid + ".json")
             if os.path.exists(out_path):
                 data = json.load(open(out_path, encoding="utf-8"))
@@ -211,7 +230,7 @@ def run():
             out = {
                 "run_id": rid, "generated_at": now(), "record_id": record_id,
                 "event_id": record["event_id"], "task_id": task_id, "condition": condition,
-                "seed": SEED, "injection_position": position,
+                "seed": SEED, "injection_position": position, "build_sig": build_sig,
                 "subject_model": subject_cfg["model"], "partner_model": partner_cfg["model"],
                 "prompt_version": subject_cfg["prompt_version"],
                 "slots_filled": slot_log, "transcript": transcript, "subject_messages": subj,

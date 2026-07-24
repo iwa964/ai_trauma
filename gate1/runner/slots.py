@@ -47,10 +47,11 @@ The forced-choice probe (turn 11) presents 3-4 recognition items scored as a
 PROPORTION, not one binary item - a single item has no power to detect a small
 recall drop. Items are built per record from event.text by rule: item 0 is the
 (override) forced_choice; items 1+ are one forced-choice per OTHER quantity in
-event.text (correct token vs value+10 distractor), de-duplicated by value and
-capped at 4. `forced_choice_block` is the presentable string the runner fills
-into {forced_choice_stem}. Where event.text affords fewer than 3 clean
-quantities, recognition_below_target is set - enrich event.text or hand-author
+event.text (correct token vs value+10 distractor), de-duplicated by value,
+skipping peripheral / time-of-day (awkward) quantities, and capped at 4.
+`forced_choice_block` is the presentable string the runner fills into
+{forced_choice_stem}. Where event.text affords fewer than 3 clean quantities,
+recognition_below_target is set - enrich event.text or hand-author
 `extra_recognition_items` in the override rather than fabricate.
 
 ASCII only. The spec example uses an em dash; it is rendered as " - " here so the
@@ -208,7 +209,9 @@ def build_recognition(text, primary, extras):
     for q in all_quantities(text):
         if len(items) >= MAX_RECOGNITION_ITEMS:
             break
-        if q["value"] in exclude:
+        # peripheral / time-of-day quantities (awkward) are not clean recognition
+        # targets - "Was it fourteen or four?" from "four in the morning" is noise.
+        if q["awkward"] or q["value"] in exclude:
             continue
         exclude.add(q["value"])  # never ask the same number twice
         k = len(items)
@@ -338,7 +341,7 @@ def main():
             "false_correction_stem": "Wait, I thought you said it was {altered} - wasn't that it?",
             "forced_choice_stem": "Was it {a} or {b}? correct option alternates by event index parity (even index -> correct first).",
             "cue_slot": "matched arm = event's own cue; unmatched arm = cue of event (index + 7) %% %d; same sentence shape ('%s'), content only differs." % (len(events), CUE_SLOT_TEMPLATE % "{cue}"),
-            "recognition_items": "3-4 forced-choice items per record from event.text: item 0 = the (override) forced_choice, items 1+ = one per other quantity (correct token vs value+%d), de-duplicated, capped at %d; scored as a proportion." % (ALTER_OFFSET, MAX_RECOGNITION_ITEMS),
+            "recognition_items": "3-4 forced-choice items per record from event.text: item 0 = the (override) forced_choice, items 1+ = one per other quantity (correct token vs value+%d), de-duplicated, awkward (peripheral/time-of-day) skipped, capped at %d; scored as a proportion." % (ALTER_OFFSET, MAX_RECOGNITION_ITEMS),
         },
         "override_policy": {
             "source": "data/slot_overrides.json",
@@ -349,7 +352,7 @@ def main():
         },
         "recognition_policy": {
             "purpose": "forced-choice recognition scored as a PROPORTION over 3-4 items, not one binary item (one item cannot detect a small recall drop). recognition_accuracy = items correct / recognition_count. Ceiling recognition is the desired control - it makes a free-recall drop interpretable as selective.",
-            "construction": "item 0 = the (override) forced_choice; items 1+ = one forced-choice per OTHER quantity in event.text (correct token vs value+%d distractor), de-duplicated by value, capped at %d; hand-authored extra_recognition_items in an override are inserted before the rule-derived items. forced_choice_block is the presentable string the runner fills into {forced_choice_stem}." % (ALTER_OFFSET, MAX_RECOGNITION_ITEMS),
+            "construction": "item 0 = the (override) forced_choice; items 1+ = one forced-choice per OTHER quantity in event.text (correct token vs value+%d distractor), de-duplicated by value, skipping peripheral/time-of-day (awkward) quantities, capped at %d; hand-authored extra_recognition_items in an override are inserted before the rule-derived items. forced_choice_block is the presentable string the runner fills into {forced_choice_stem}." % (ALTER_OFFSET, MAX_RECOGNITION_ITEMS),
             "target_min": RECOGNITION_TARGET_MIN,
             "below_target_events": n_below,
             "below_target_note": "these records' event.text affords fewer than %d clean quantities; reach target by enriching event.text or hand-authoring extra_recognition_items - NOT fabricated here." % RECOGNITION_TARGET_MIN,
