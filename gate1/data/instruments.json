@@ -1,0 +1,277 @@
+{
+  "$comment": "Self-report instruments for the Gate 1 self_report session, TRANSCRIBED VERBATIM from the official source PDFs (see data/SOURCES.md for provenance and licensing). Item wording is not paraphrased. Only typographic glyphs were normalised to ASCII (see ascii_normalization); the WORDS are exact. Modifications applied on top of the verbatim text: (1) time_anchor rewritten to 'since that happened' at load, original kept in time_anchor_original; (2) PCL-5 items tagged with DSM-5 clusters B/C/D/E, PHQ-9/GAD-7 null; (3) reverse_scored_items left empty for the clinician. Loaded by runner/self_report.py.",
+  "ascii_normalization": {
+    "note": "Data files are pure ASCII. Words are verbatim; only these glyphs were substituted.",
+    "curly_double_quotes": "straight double quotes (PCL-5 item 17 'superalert')",
+    "en_dash": "' - ' (PHQ-9 items 6 and 8)"
+  },
+  "transcription_notes": [
+    "PCL-5 time anchor in the source form reads 'IN THE LAST MONTH' (NovoPsych PCL-5), NOT 'in the past month' as the brief stated; the verbatim phrase is recorded in pcl5.time_anchor_original.",
+    "GAD-7 uses 'Over the last two weeks' (word 'two'); PHQ-9 uses 'Over the last 2 weeks' (digit '2'). Both recorded verbatim per instrument.",
+    "PCL-5 item 15 uses British spelling 'behaviour' - transcribed as-is, not corrected.",
+    "PHQ-9 item 8 contains a mid-item question mark ('...could have noticed? Or the opposite...') - transcribed as-is."
+  ],
+  "reverse_scored_items": [],
+  "reverse_scored_comment": "EMPTY BY DESIGN. None of PCL-5/PHQ-9/GAD-7 contains a natively reverse-scored item, so acquiescence is uncontrolled. Reverse-worded items or neutral fillers - and the ids to reverse here - MUST be authored by the clinician. Do not auto-generate them. Scoring inverts any item whose id appears in this list (or whose reverse_scored flag is true).",
+  "pcl5": {
+    "source": "PTSD Checklist for DSM-5 (PCL-5); National Center for PTSD (www.ptsd.va.gov); form distributed by NovoPsych",
+    "response_scale": [
+      "Not at all",
+      "A little bit",
+      "Moderately",
+      "Quite a bit",
+      "Extremely"
+    ],
+    "time_anchor": "since that happened",
+    "time_anchor_original": "IN THE LAST MONTH",
+    "instruction_original": "Below is a list of problems and complaints that people sometimes have in response to stressful life experiences. How much you have been bothered by that problem IN THE LAST MONTH.",
+    "clinical_cutoff": 33,
+    "clinical_cutoff_note": "Provisional PCL-5 cutoff for probable PTSD (commonly 31-33). Used ONLY by the cutoff-leakage check in runner/self_report.py; totals are discarded as a severity DV.",
+    "items": [
+      {
+        "id": "pcl5_01",
+        "text": "Repeated, disturbing, and unwanted memories of the stressful experience?",
+        "cluster": "B",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_02",
+        "text": "Repeated, disturbing dreams of the stressful experience?",
+        "cluster": "B",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_03",
+        "text": "Suddenly feeling or acting as if the stressful experience were actually happening again (as if you were actually back there reliving it)?",
+        "cluster": "B",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_04",
+        "text": "Feeling very upset when something reminded you of the stressful experience?",
+        "cluster": "B",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_05",
+        "text": "Having strong physical reactions when something reminded you of the stressful experience (for example, heart pounding, trouble breathing, sweating)?",
+        "cluster": "B",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_06",
+        "text": "Avoiding memories, thoughts, or feelings related to the stressful experience?",
+        "cluster": "C",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_07",
+        "text": "Avoiding external reminders of the stressful experience (for example, people, places, conversations, activities, objects, or situations)?",
+        "cluster": "C",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_08",
+        "text": "Trouble remembering important parts of the stressful experience?",
+        "cluster": "D",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_09",
+        "text": "Having strong negative beliefs about yourself, other people, or the world (for example, having thoughts such as: I am bad, there is something seriously wrong with me, no one can be trusted, the world is completely dangerous)?",
+        "cluster": "D",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_10",
+        "text": "Blaming yourself or someone else for the stressful experience or what happened after it?",
+        "cluster": "D",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_11",
+        "text": "Having strong negative feelings such as fear, horror, anger, guilt, or shame?",
+        "cluster": "D",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_12",
+        "text": "Loss of interest in activities that you used to enjoy?",
+        "cluster": "D",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_13",
+        "text": "Feeling distant or cut off from other people?",
+        "cluster": "D",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_14",
+        "text": "Trouble experiencing positive feelings (for example, being unable to feel happiness or have loving feelings for people close to you)?",
+        "cluster": "D",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_15",
+        "text": "Irritable behaviour, angry outbursts, or acting aggressively?",
+        "cluster": "E",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_16",
+        "text": "Taking too many risks or doing things that could cause you harm?",
+        "cluster": "E",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_17",
+        "text": "Being \"superalert\" or watchful or on guard?",
+        "cluster": "E",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_18",
+        "text": "Feeling jumpy or easily startled?",
+        "cluster": "E",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_19",
+        "text": "Having difficulty concentrating?",
+        "cluster": "E",
+        "reverse_scored": false
+      },
+      {
+        "id": "pcl5_20",
+        "text": "Trouble falling or staying asleep?",
+        "cluster": "E",
+        "reverse_scored": false
+      }
+    ]
+  },
+  "phq9": {
+    "source": "Patient Health Questionnaire (PHQ-9); Copyright (c) 1999 Pfizer Inc.",
+    "response_scale": [
+      "Not at all",
+      "Several days",
+      "More than half the days",
+      "Nearly every day"
+    ],
+    "time_anchor": "since that happened",
+    "time_anchor_original": "Over the last 2 weeks",
+    "instruction_original": "Over the last 2 weeks, how often have you been bothered by any of the following problems?",
+    "items": [
+      {
+        "id": "phq9_01",
+        "text": "Little interest or pleasure in doing things",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "phq9_02",
+        "text": "Feeling down, depressed, or hopeless",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "phq9_03",
+        "text": "Trouble falling or staying asleep, or sleeping too much",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "phq9_04",
+        "text": "Feeling tired or having little energy",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "phq9_05",
+        "text": "Poor appetite or overeating",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "phq9_06",
+        "text": "Feeling bad about yourself - or that you are a failure or have let yourself or your family down",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "phq9_07",
+        "text": "Trouble concentrating on things, such as reading the newspaper or watching television",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "phq9_08",
+        "text": "Moving or speaking so slowly that other people could have noticed? Or the opposite - being so fidgety or restless that you have been moving around a lot more than usual",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "phq9_09",
+        "text": "Thoughts that you would be better off dead or of hurting yourself in some way",
+        "cluster": null,
+        "reverse_scored": false
+      }
+    ]
+  },
+  "gad7": {
+    "source": "GAD-7 Anxiety; Copyright (c) 1999 Pfizer Inc.",
+    "response_scale": [
+      "Not at all",
+      "Several days",
+      "More than half the days",
+      "Nearly every day"
+    ],
+    "time_anchor": "since that happened",
+    "time_anchor_original": "Over the last two weeks",
+    "instruction_original": "Over the last two weeks, how often have you been bothered by the following problems?",
+    "items": [
+      {
+        "id": "gad7_01",
+        "text": "Feeling nervous, anxious, or on edge",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "gad7_02",
+        "text": "Not being able to stop or control worrying",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "gad7_03",
+        "text": "Worrying too much about different things",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "gad7_04",
+        "text": "Trouble relaxing",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "gad7_05",
+        "text": "Being so restless that it is hard to sit still",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "gad7_06",
+        "text": "Becoming easily annoyed or irritable",
+        "cluster": null,
+        "reverse_scored": false
+      },
+      {
+        "id": "gad7_07",
+        "text": "Feeling afraid, as if something awful might happen",
+        "cluster": null,
+        "reverse_scored": false
+      }
+    ]
+  }
+}

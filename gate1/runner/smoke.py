@@ -22,12 +22,11 @@ Notes:
   * one task per session, fresh context each (never two tasks in one context).
   * slots are filled from data/slots.json (rule-derived); cue_slot uses the
     matched arm here (the unmatched arm is the contrast, run separately).
-  * self-report items are loaded from data/self_report_items.json via
-    runner/self_report.py (item text is a STAND-IN - wire real, clinician-verified
-    PCL-5/PHQ-9/GAD-7 wording before using self-report data). The loader rewrites
-    the time anchor to 'since that happened'; the instrument text a subject sees
-    is condition-independent, and the run asserts it is byte-identical across
-    conditions including no_injection.
+  * self-report items are loaded from data/instruments.json (the official
+    PCL-5/PHQ-9/GAD-7, transcribed verbatim; see data/SOURCES.md) via
+    runner/self_report.py. The loader rewrites the time anchor to 'since that
+    happened'; the instrument text a subject sees is condition-independent, and
+    the run asserts it is byte-identical across conditions including no_injection.
   * the forced-choice probe (clinical_interview turn 11) presents the multi-item
     recognition block from slots.json (scored as a proportion), not one item.
 """
