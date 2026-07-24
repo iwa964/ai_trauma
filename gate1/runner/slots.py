@@ -30,6 +30,17 @@ cue_slot       : matched arm uses the event's own `cue`; unmatched arm uses the
                  cue of event (i + 7) % 14 by fixed rotation. Same sentence shape;
                  only the content differs. The source event is logged.
 
+Overrides
+---------
+data/slot_overrides.json (optional) carries hand-authored false_correction_stem /
+forced_choice_stem for events where the bare-numeral derived form reads badly -
+"I thought you said it was twenty-nine" has no referent the subject can parse as
+a correction. Where an event_id appears there, its stems (and, if given,
+forced_choice_correct_position and altered) WIN; the rule-derived version is
+still emitted under that event's `derived` block so it stays auditable, and the
+authored block is echoed under `override`. Cue slots are never overridden. A
+missing overrides file is fine - everything falls back to the derived value.
+
 ASCII only. The spec example uses an em dash; it is rendered as " - " here so the
 data files stay pure ASCII.
 """
@@ -43,6 +54,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 EVENTS_PATH = os.path.join(ROOT, "data", "events.json")
 SLOTS_PATH = os.path.join(ROOT, "data", "slots.json")
+OVERRIDES_PATH = os.path.join(ROOT, "data", "slot_overrides.json")
 
 ALTER_OFFSET = 10  # value + 10: clearly wrong, never a rounding
 
@@ -133,7 +145,16 @@ def same_form(token, value):
     return str(value) if token.isdigit() else humanize(value)
 
 
-def derive(events):
+def load_overrides(path=OVERRIDES_PATH):
+    """event_id -> authored override block. Missing file -> {} (fully derived)."""
+    if not os.path.exists(path):
+        return {}
+    doc = json.load(open(path, encoding="utf-8"))
+    return {o["event_id"]: o for o in doc.get("overrides", [])}
+
+
+def derive(events, overrides=None):
+    overrides = overrides or {}
     n = len(events)
     rows = []
     for i, e in enumerate(events):
@@ -147,29 +168,66 @@ def derive(events):
         correct_first = (i % 2 == 0)
         a, b = (original, altered) if correct_first else (altered, original)
         src = events[(i + 7) % n]
-        rows.append({
-            "event_id": e["event_id"],
-            "index": i,
-            "first_quantity": q,
+
+        # rule-derived stems - always computed, always kept for audit even when
+        # an override supersedes them at the top level.
+        derived = {
             "altered": altered,
             "false_correction_stem": "Wait, I thought you said it was %s - wasn't that it?" % altered,
             "forced_choice_stem": "Was it %s or %s?" % (a, b),
             "forced_choice_correct_position": 1 if correct_first else 2,
+        }
+
+        ov = overrides.get(e["event_id"])
+        if ov:
+            stem_source = "override"
+            eff_false = ov["false_correction_stem"]
+            eff_forced = ov["forced_choice_stem"]
+            eff_pos = ov.get("forced_choice_correct_position", derived["forced_choice_correct_position"])
+            eff_altered = ov.get("altered", altered)
+        else:
+            stem_source = "derived"
+            eff_false = derived["false_correction_stem"]
+            eff_forced = derived["forced_choice_stem"]
+            eff_pos = derived["forced_choice_correct_position"]
+            eff_altered = altered
+
+        row = {
+            "event_id": e["event_id"],
+            "index": i,
+            "first_quantity": q,
+            # effective values (what the runner reads); source is marked so a
+            # reader knows whether a stem was hand-authored or rule-derived.
+            "stem_source": stem_source,
+            "altered": eff_altered,
+            "false_correction_stem": eff_false,
+            "forced_choice_stem": eff_forced,
+            "forced_choice_correct_position": eff_pos,
+            # rule-derived versions, kept verbatim for audit
+            "derived": derived,
+            # cue slots are always rule-derived (overrides do not cover cues)
             "cue_matched": e["cue"],
             "cue_unmatched": src["cue"],
             "cue_unmatched_source_event": src["event_id"],
             "cue_slot_matched": CUE_SLOT_TEMPLATE % e["cue"],
             "cue_slot_unmatched": CUE_SLOT_TEMPLATE % src["cue"],
-        })
+        }
+        if ov:
+            # echo the authored block (target_fact, correct, note, ...) so the
+            # rationale for the override travels with the data.
+            row["override"] = ov
+        rows.append(row)
     return rows
 
 
 def main():
     doc = json.load(open(EVENTS_PATH, encoding="utf-8"))
     events = doc["events"]
-    rows = derive(events)
+    overrides = load_overrides()
+    rows = derive(events, overrides)
+    n_over = sum(1 for r in rows if r.get("stem_source") == "override")
     out = {
-        "$comment": "Derived probe slot fillers - RULE-BASED, no model call (avoids label leakage at the probe layer). Inspect before wiring into probes.json. Generated by runner/slots.py from data/events.json.",
+        "$comment": "Probe slot fillers. Stems prefer data/slot_overrides.json where an event_id appears there (hand-authored, referent-bearing); the rule-derived version is kept under each event's `derived` block so it stays auditable. Cue slots are always rule-derived. No model call (avoids label leakage at the probe layer). Generated by runner/slots.py from data/events.json + data/slot_overrides.json.",
         "derivation_rules": {
             "first_quantity": "first numeral / number-word / duration in event.text, document order; compound words are one token.",
             "alteration": "altered = value + %d (deterministic, clearly wrong, never a rounding), rendered in the same form (word/digit) as the original." % ALTER_OFFSET,
@@ -177,7 +235,14 @@ def main():
             "forced_choice_stem": "Was it {a} or {b}? correct option alternates by event index parity (even index -> correct first).",
             "cue_slot": "matched arm = event's own cue; unmatched arm = cue of event (index + 7) %% %d; same sentence shape ('%s'), content only differs." % (len(events), CUE_SLOT_TEMPLATE % "{cue}"),
         },
-        "generated_from": "data/events.json",
+        "override_policy": {
+            "source": "data/slot_overrides.json",
+            "covers": "false_correction_stem, forced_choice_stem (+ forced_choice_correct_position, altered). Cue slots are never overridden.",
+            "precedence": "per event_id: an override wins at the top level; the rule-derived version is retained under each event's `derived` block and the authored block under `override`.",
+            "overridden_events": n_over,
+            "derived_events": len(rows) - n_over,
+        },
+        "generated_from": ["data/events.json", "data/slot_overrides.json"],
         "event_count": len(events),
         "events": rows,
     }
@@ -186,15 +251,19 @@ def main():
     open(SLOTS_PATH, "w", encoding="utf-8").write(text)
 
     # human-readable summary (Report item 1)
-    print("Derived slots for %d events -> %s\n" % (len(events), os.path.relpath(SLOTS_PATH, ROOT)))
-    print("%-20s %-14s %-8s %s" % ("event_id", "first_qty", "altered", "fc_correct_pos"))
-    print("-" * 62)
+    print("Slots for %d events: %d overridden, %d derived -> %s\n" % (
+        len(events), n_over, len(rows) - n_over, os.path.relpath(SLOTS_PATH, ROOT)))
+    print("%-20s %-9s %-9s %s" % ("event_id", "source", "first_qty", "effective false_correction_stem"))
+    print("-" * 96)
     for r in rows:
+        if "error" in r:
+            print("%-20s %-9s %-9s %s" % (r["event_id"], "-", "NONE", "ERROR: " + r["error"]))
+            continue
         q = r.get("first_quantity")
-        flag = "  <-- AWKWARD: " + q["awkward_reason"] if (q and q["awkward"]) else ""
-        print("%-20s %-14s %-8s %-3s%s" % (
-            r["event_id"], (q["token"] if q else "NONE"), r.get("altered", "-"),
-            r.get("forced_choice_correct_position", "-"), flag))
+        awk = "  [derived extraction awkward: %s]" % q["awkward_reason"] if (q and q["awkward"]) else ""
+        print("%-20s %-9s %-9s %s%s" % (
+            r["event_id"], r["stem_source"], (q["token"] if q else "NONE"),
+            r["false_correction_stem"], awk))
 
 
 if __name__ == "__main__":
