@@ -19,8 +19,12 @@ Design invariants:
   * refusals are DATA, never errors - never retried, never raised, never dropped
   * execution and scoring are separate - this saves transcripts and computes
     nothing beyond refusal classification
-  * run_id = sha256(record_id, task_id, condition, seed, model, prompt_version)[:16];
-    a call whose output file exists is skipped, so a crashed run resumes
+  * run_id = sha256(record_id, task_id, condition, seed, model, prompt_version,
+    injection_position)[:16]; a call whose output file exists is skipped, so a
+    crashed run resumes. injection_position is in the key (an extension of the
+    spec formula) because it changes every message - prior_turns vs system - and
+    is a configurable factor; without it, a rerun at a new position would
+    silently reuse the old placement's data.
 """
 from __future__ import annotations
 
@@ -110,8 +114,8 @@ def flatten(doc):
     return out
 
 
-def run_id_for(record_id, condition, seed, model_id, prompt_version):
-    key = "|".join([record_id, TASK_ID, condition, str(seed), model_id, prompt_version])
+def run_id_for(record_id, condition, seed, model_id, prompt_version, injection_position):
+    key = "|".join([record_id, TASK_ID, condition, str(seed), model_id, prompt_version, injection_position])
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
@@ -121,24 +125,25 @@ def now():
 
 def run():
     cfg = model_mod.get_config()
+    position = inject.DEFAULT_INJECTION_POSITION  # effective placement for this run
     doc = json.load(open(EVENTS_PATH, encoding="utf-8"))
     records = flatten(doc)
     os.makedirs(RUNS_DIR, exist_ok=True)
-    print("pilot_refusal: %d records x %d seeds = %d calls | provider=%s model=%s" % (
-        len(records), len(SEEDS), len(records) * len(SEEDS), cfg["provider"], cfg["model"]))
+    print("pilot_refusal: %d records x %d seeds = %d calls | provider=%s model=%s position=%s" % (
+        len(records), len(SEEDS), len(records) * len(SEEDS), cfg["provider"], cfg["model"], position))
 
     done = skipped = errors = 0
     for rec in records:
         # probes.json condition names: injected (injurious) / benign_matched (benign)
         condition = "injected" if rec["valence"] == "injurious" else "benign_matched"
         for seed in SEEDS:
-            rid = run_id_for(rec["record_id"], condition, seed, cfg["model"], cfg["prompt_version"])
+            rid = run_id_for(rec["record_id"], condition, seed, cfg["model"], cfg["prompt_version"], position)
             out_path = os.path.join(RUNS_DIR, rid + ".json")
             if os.path.exists(out_path):
                 skipped += 1
                 continue
             messages = inject.build_messages(rec["event_text"], rec["appraisal_text"], condition,
-                                             tail_turns=[INNOCUOUS_TURN])
+                                             tail_turns=[INNOCUOUS_TURN], position=position)
             inject.assert_format_identical([messages])
             try:
                 text, raw = model_mod.complete(messages, seed, cfg)
@@ -156,7 +161,8 @@ def run():
                 "appraisal_id": rec["appraisal_id"], "provisional_tag": rec["provisional_tag"],
                 "valence": rec["valence"], "condition": condition, "task_id": TASK_ID,
                 "seed": seed, "model": model_id, "model_version": model_version,
-                "prompt_version": cfg["prompt_version"], "injection_format": rec["injection_format"],
+                "prompt_version": cfg["prompt_version"], "injection_position": position,
+                "injection_format": rec["injection_format"],
                 "messages": messages, "response_text": text,
             }
             row.update(cls)
@@ -164,17 +170,27 @@ def run():
                 json.dump(row, f, indent=2, ensure_ascii=True)
             done += 1
     print("wrote %d, skipped(resumed) %d, errors %d" % (done, skipped, errors))
-    aggregate(records)
+    aggregate(records, cfg, position)
 
 
-def aggregate(records):
-    # load every result on disk (so aggregation is consistent across resumes)
-    results = []
+def aggregate(records, cfg, position):
+    # load every result on disk (so aggregation is consistent across resumes),
+    # then keep only THIS run's configuration. A RUNS_DIR reused across models,
+    # prompt versions, or injection positions holds incompatible rows; mixing
+    # them would inflate n and corrupt the reported rates. (Rows written before
+    # injection_position was tracked lack the field and are excluded here.)
+    on_disk = []
     for fn in os.listdir(RUNS_DIR):
         if fn.endswith(".json"):
-            results.append(json.load(open(os.path.join(RUNS_DIR, fn), encoding="utf-8")))
+            on_disk.append(json.load(open(os.path.join(RUNS_DIR, fn), encoding="utf-8")))
+    results = [r for r in on_disk
+               if r.get("model") == cfg["model"]
+               and r.get("prompt_version") == cfg["prompt_version"]
+               and r.get("injection_position") == position]
+    excluded = len(on_disk) - len(results)
     if not results:
-        print("no results yet; skipping refusal_rates.csv")
+        print("no results for this configuration (model=%s prompt=%s position=%s); skipping refusal_rates.csv"
+              % (cfg["model"], cfg["prompt_version"], position))
         return
 
     def agg(key):
@@ -200,15 +216,19 @@ def aggregate(records):
                 "refused": b["refused"], "refusal_rate": round(b["refused"] / b["n"], 4),
                 "partial": b["partial"], "partial_rate": round(b["partial"] / b["n"], 4),
                 "uncertain": b["uncertain"],
+                "model": cfg["model"], "prompt_version": cfg["prompt_version"],
+                "injection_position": position,
             })
     with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["group_type", "group", "n", "refused", "refusal_rate",
-                                          "partial", "partial_rate", "uncertain"])
+                                          "partial", "partial_rate", "uncertain",
+                                          "model", "prompt_version", "injection_position"])
         w.writeheader()
         w.writerows(rows)
     over20 = [r for r in rows if r["group_type"] == "event_id" and r["refusal_rate"] > 0.20]
-    print("wrote %s (%d rows). events over 20%% refusal: %s" % (
-        os.path.relpath(CSV_PATH, ROOT), len(rows),
+    print("wrote %s (%d rows from %d results | model=%s prompt=%s position=%s | excluded %d other-config). events over 20%% refusal: %s" % (
+        os.path.relpath(CSV_PATH, ROOT), len(rows), len(results),
+        cfg["model"], cfg["prompt_version"], position, excluded,
         ", ".join("%s=%.0f%%" % (r["group"], r["refusal_rate"] * 100) for r in over20) or "none"))
 
 

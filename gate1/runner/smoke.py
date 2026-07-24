@@ -140,8 +140,8 @@ def run_session(turns, record, condition, seed, subject_cfg, partner_cfg, slots)
     return transcript, slot_log, subj
 
 
-def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version):
-    key = "|".join([record_id, task_id, condition, str(seed), model_id, prompt_version])
+def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version, injection_position):
+    key = "|".join([record_id, task_id, condition, str(seed), model_id, prompt_version, injection_position])
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
@@ -174,7 +174,7 @@ def run():
 
     for condition in CONDITIONS:
         for task_id, turns in sessions:
-            rid = run_id_for(record_id, task_id, condition, SEED, subject_cfg["model"], subject_cfg["prompt_version"])
+            rid = run_id_for(record_id, task_id, condition, SEED, subject_cfg["model"], subject_cfg["prompt_version"], inject.DEFAULT_INJECTION_POSITION)
             out_path = os.path.join(RUNS_DIR, rid + ".json")
             if os.path.exists(out_path):
                 data = json.load(open(out_path, encoding="utf-8"))
