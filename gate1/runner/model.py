@@ -6,9 +6,10 @@
 The subject model is GPT, selected by config/env so swapping in a second model
 later is configuration, not a rewrite. `model` (configured id) and
 `model_version` (the id the API actually resolved to) are recorded on every call
-via model_ids(). No third-party package is required - the OpenAI-compatible
-Chat Completions endpoint is called over stdlib HTTP, so this works through the
-environment proxy.
+via model_ids(). The core adapter uses only stdlib HTTP (the OpenAI-compatible
+Chat Completions endpoint, through the environment proxy). python-dotenv is
+required at import - it loads a local .env for OPENAI_API_KEY etc.
+(pip install python-dotenv).
 
 Providers:
   openai (default) : POST {base_url}/chat/completions, needs OPENAI_API_KEY
@@ -23,6 +24,11 @@ Config (env, with defaults):
   OPENAI_BASE_URL       https://api.openai.com/v1
 """
 from __future__ import annotations
+
+# Load a local .env so OPENAI_API_KEY etc. are available before get_config() reads
+# the environment. (Just below __future__, which must remain the first statement.)
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv(usecwd=True))
 
 import json
 import os
