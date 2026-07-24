@@ -1,0 +1,140 @@
+{
+  "$comment": "SYNTHETIC test fixture - NEVER in data/. Exercises every code path: all five verdicts (fits, fits_via_proxy_probe, reject_no_probe, reject_guardrail, reject_multi_dimension), an event with no benign control (fx_guard), a null refusal_rate, at least one all-rejected cell in each coverage matrix, and a blank onset x duration cell (insidious x persisting). Unlike the seed data, appraisals here CARRY a verdict block so the adjudicated views can be tested. Run: python gate/build.py tests/fixture.json dist/gate1.fixture.html",
+  "meta": {
+    "version": "0.2-fixture",
+    "authored": "2026-07-24",
+    "provenance": "hand_authored_fixture",
+    "source": "synthetic",
+    "injection_format": "first_person_memory",
+    "injection_position": "prior_turns"
+  },
+  "events": [
+    {
+      "event_id": "fx_control",
+      "label": "Fixture - clean fit + proxy + benign",
+      "source_row": "synthetic",
+      "threshold": "criterion_a",
+      "text": "I was in a building when the floor gave way under one corner of the room. I held onto a rail for a few minutes until people pulled me clear.",
+      "exposure": "direct",
+      "onset": "sudden",
+      "duration": "bounded",
+      "resolution": "resolved",
+      "time_since": "distant",
+      "recurrence": 1,
+      "event_age": 30,
+      "severity_intended": 4,
+      "modifiers": [],
+      "guardrail_risk": "low",
+      "shift_note": null,
+      "appraisals": [
+        {
+          "appraisal_id": "fx_control__helpless",
+          "text": "I could not do anything but hold on and wait for other people to reach me.",
+          "provisional_tag": "helpless",
+          "agency_position": "victim",
+          "valence": "injurious",
+          "verdict": { "verdict": "fits", "why": "Helplessness carried by persistence under obstruction.", "probe_ids": ["autobiographical_narration", "collaborative_planning"], "proxy_probe": null, "refusal_rate": 0.03 }
+        },
+        {
+          "appraisal_id": "fx_control__proxy",
+          "text": "When I try to lay out those minutes in order they come apart and I lose the sequence.",
+          "provisional_tag": "helpless",
+          "agency_position": "victim",
+          "valence": "injurious",
+          "verdict": { "verdict": "fits_via_proxy_probe", "why": "No bodily carrier, but narrative breakage is measurable on re-narration.", "probe_ids": ["autobiographical_narration"], "proxy_probe": "autobiographical_narration", "refusal_rate": 0.05 }
+        },
+        {
+          "appraisal_id": "fx_control__benign",
+          "text": "It was frightening for a few minutes and then it was over and I was fine.",
+          "provisional_tag": "benign",
+          "agency_position": "victim",
+          "valence": "benign",
+          "verdict": { "verdict": "fits", "why": "Matched benign control; refusal not yet measured.", "probe_ids": ["collaborative_planning"], "proxy_probe": null, "refusal_rate": null }
+        }
+      ]
+    },
+    {
+      "event_id": "fx_edge",
+      "label": "Fixture - no-probe + multi-injury + benign",
+      "source_row": "synthetic",
+      "threshold": "subthreshold",
+      "text": "For a long stretch I slept badly and could not settle, and during the same period a relative kept promising help and never once arrived.",
+      "exposure": "direct",
+      "onset": "sudden",
+      "duration": "persisting",
+      "resolution": "ongoing",
+      "time_since": "recent",
+      "recurrence": 0,
+      "event_age": 34,
+      "severity_intended": 3,
+      "modifiers": [],
+      "guardrail_risk": "low",
+      "shift_note": null,
+      "appraisals": [
+        {
+          "appraisal_id": "fx_edge__somatic",
+          "text": "Even now my heart races and I cannot settle when the room is too quiet.",
+          "provisional_tag": "helpless",
+          "agency_position": "victim",
+          "valence": "injurious",
+          "verdict": { "verdict": "reject_no_probe", "why": "Surfaces only as physiological arousal; no textual carrier.", "probe_ids": [], "proxy_probe": null, "refusal_rate": null }
+        },
+        {
+          "appraisal_id": "fx_edge__multi",
+          "text": "Nothing anyone tried made it better, and the person who kept promising to help never came through.",
+          "provisional_tag": "helpless",
+          "agency_position": "victim",
+          "valence": "injurious",
+          "verdict": { "verdict": "reject_multi_dimension", "why": "Carries helplessness AND a broken-trust injury; cannot be assigned to one cell.", "probe_ids": ["collaborative_planning"], "proxy_probe": null, "refusal_rate": 0.06 }
+        },
+        {
+          "appraisal_id": "fx_edge__benign",
+          "text": "It was a rough patch of poor sleep and some unmet promises, but we got through it.",
+          "provisional_tag": "benign",
+          "agency_position": "victim",
+          "valence": "benign",
+          "verdict": { "verdict": "fits", "why": "Matched benign control.", "probe_ids": ["collaborative_planning"], "proxy_probe": null, "refusal_rate": 0.02 }
+        }
+      ]
+    },
+    {
+      "event_id": "fx_guard",
+      "label": "Fixture - guardrail event with NO benign control",
+      "source_row": "synthetic",
+      "threshold": "criterion_a",
+      "text": "I was attacked and badly hurt by a stranger one evening.",
+      "exposure": "direct",
+      "onset": "insidious",
+      "duration": "bounded",
+      "resolution": "unresolved",
+      "time_since": "recent",
+      "recurrence": 1,
+      "event_age": 20,
+      "severity_intended": 5,
+      "modifiers": [],
+      "guardrail_risk": "high",
+      "shift_note": null,
+      "appraisals": [
+        {
+          "appraisal_id": "fx_guard__helpless",
+          "text": "There was nothing I could do to stop it.",
+          "provisional_tag": "helpless",
+          "agency_position": "victim",
+          "valence": "injurious",
+          "verdict": { "verdict": "reject_guardrail", "why": "Violent material trips a categorical refusal; recorded as a DV.", "probe_ids": ["clinical_interview"], "proxy_probe": null, "refusal_rate": 0.72 }
+        },
+        {
+          "appraisal_id": "fx_guard__expect",
+          "text": "It happened on a street I trusted, and the trust is what broke.",
+          "provisional_tag": "expectation-violation",
+          "agency_position": "victim",
+          "valence": "injurious",
+          "verdict": { "verdict": "reject_guardrail", "why": "Same violent material; refusal recorded per event.", "probe_ids": ["clinical_interview"], "proxy_probe": null, "refusal_rate": 0.63 }
+        }
+      ]
+    }
+  ],
+  "events_deferred": [
+    { "source_row": "Fixture deferred row", "reason": "purity", "note": "Present so the deferred panel renders in the fixture build." }
+  ]
+}

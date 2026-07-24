@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "gate1/gate/schema.json",
+  "title": "Gate 1 events dataset (v0.2)",
+  "description": "Source-of-truth event set for the Gate 1 admissibility filter. Nested: appraisals live inside their event so the event text is authored once. build.py flattens to one record per (event x appraisal); record_id = {event_id}::{appraisal_id}. The injury lives on the appraisal. There is NO persona block and NO target_dimension anywhere (v0.2). Verdicts are absent from seed data by design; the optional verdict block exists only so the test fixture can exercise the adjudicated views.",
+  "type": "object",
+  "required": ["meta", "events"],
+  "properties": {
+    "$comment": { "type": "string" },
+    "meta": {
+      "type": "object",
+      "required": ["version", "provenance", "injection_format"],
+      "properties": {
+        "version": { "type": "string" },
+        "authored": { "type": "string" },
+        "provenance": { "type": "string", "description": "hand_authored / model_generated (or a more specific note). If it starts with model_generated the generator model must differ from the subject model." },
+        "provenance_note": { "type": "string" },
+        "source": { "type": "string" },
+        "subject_model": { "type": "string", "description": "Optional. The model under study; used only for the model_generated != subject check." },
+        "generator_model": { "type": "string" },
+        "injection_format": { "type": "string", "description": "e.g. first_person_memory" },
+        "injection_position": { "type": "string" },
+        "conventions": { "type": "object" }
+      }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/event" }
+    },
+    "events_deferred": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/deferred" }
+    }
+  },
+  "$defs": {
+    "event": {
+      "type": "object",
+      "description": "Objective description. No subjective interpretation. onset and duration are independent axes and must not be collapsed.",
+      "additionalProperties": false,
+      "required": ["event_id", "label", "source_row", "threshold", "text", "exposure", "onset", "duration", "resolution", "time_since", "recurrence", "event_age", "severity_intended", "modifiers", "guardrail_risk", "shift_note", "appraisals"],
+      "properties": {
+        "event_id": { "type": "string" },
+        "label": { "type": "string", "description": "Human-readable name for the interface." },
+        "source_row": { "type": "string", "description": "Originating row in the source event/stressor table." },
+        "threshold": { "enum": ["criterion_a", "subthreshold"] },
+        "text": { "type": "string", "description": "First-person factual narration. No evaluation, no causal attribution." },
+        "exposure": { "enum": ["direct", "witness", "learned", "indirect", "perpetrator"] },
+        "onset": { "enum": ["sudden", "insidious"] },
+        "duration": { "enum": ["bounded", "persisting"] },
+        "resolution": { "enum": ["resolved", "unresolved", "ongoing"] },
+        "time_since": { "enum": ["recent", "intermediate", "distant"] },
+        "recurrence": { "type": "integer", "minimum": 0, "description": "1 = single; >1 = count; 0 = sentinel meaning recurrence is constitutive and cannot vary independently." },
+        "event_age": { "type": "integer", "minimum": 0 },
+        "severity_intended": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Design intent, not a measurement. Requires blind manipulation check before use." },
+        "modifiers": { "type": "array", "items": { "enum": ["developmental", "age-sensitive", "collective", "confounder-medical"] }, "description": "Structural qualifiers, NOT injury descriptors." },
+        "guardrail_risk": { "enum": ["low", "moderate", "high"], "description": "Authoring estimate, superseded by measured refusal_rate." },
+        "shift_note": { "type": ["string", "null"], "description": "The threshold at which the injury changes in KIND, not merely in degree." },
+        "appraisals": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/appraisal" } }
+      }
+    },
+    "appraisal": {
+      "type": "object",
+      "description": "First-person interpretation. THE INJURY LIVES HERE. Must not introduce facts absent from event.text. additionalProperties:false so a migrated v0.1 field (e.g. target_dimension) is rejected at build time, not copied into records.",
+      "additionalProperties": false,
+      "required": ["appraisal_id", "text", "provisional_tag", "agency_position", "valence"],
+      "properties": {
+        "appraisal_id": { "type": "string" },
+        "text": { "type": "string" },
+        "provisional_tag": { "enum": ["helpless", "passive-witness", "epistemic-betrayal", "betrayal", "shame-based", "self-directed", "expectation-violation", "collective", "guilt-moral-injury", "benign"], "description": "From the Tags column of the source table. Provisional - dimensions are deferred. Not a settled taxonomy." },
+        "agency_position": { "enum": ["victim", "witness", "learned", "agent", "instrument", "perpetrator"], "description": "How the narrator positions themselves. Can shift across appraisals of identical facts (see moral_layoff)." },
+        "valence": { "enum": ["injurious", "benign"], "description": "benign = matched control: same event text, non-injurious reading, word-for-word identical stem." },
+        "verdict": { "$ref": "#/$defs/verdict", "description": "OPTIONAL and absent from seed data by design (SS3.5). Present only in the test fixture." }
+      }
+    },
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verdict"],
+      "properties": {
+        "verdict": { "enum": ["fits", "fits_via_proxy_probe", "reject_no_probe", "reject_guardrail", "reject_multi_dimension"] },
+        "why": { "type": "string" },
+        "probe_ids": { "type": "array", "items": { "type": "string" } },
+        "proxy_probe": { "type": ["string", "null"] },
+        "refusal_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+    "deferred": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_row", "reason", "note"],
+      "properties": {
+        "source_row": { "type": "string" },
+        "reason": { "type": "string" },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}
