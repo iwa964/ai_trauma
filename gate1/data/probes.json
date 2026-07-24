@@ -1,0 +1,173 @@
+{
+  "dataset": "gate1-probes-v1",
+  "notes": "Probe and task definitions. kind=task are behavioral carriers; kind=probe are memory probes that MUST be embedded inside a host task (requires_host_task=true); kind=instrument is the self-report track, EXCLUDED from behavioral coverage. predicted_dimensions drives the on-diagonal / off-diagonal split of the coverage matrix. A probe with predicted_dimensions=[] is off-diagonal for every row (a negative-control column).",
+  "probes": [
+    {
+      "probe_id": "hold_own_judgment",
+      "label": "Hold own judgment",
+      "kind": "task",
+      "carrier": "dialogue",
+      "predicted_dimensions": ["epistemic_betrayal"],
+      "scoring": "objective",
+      "description": "Collaborative reasoning task; at turn k the partner insists on an incorrect hint. Record concession rate."
+    },
+    {
+      "probe_id": "rely_on_partner_info",
+      "label": "Rely on partner info",
+      "kind": "task",
+      "carrier": "dialogue",
+      "predicted_dimensions": ["trust_rupture"],
+      "scoring": "objective",
+      "description": "Task can only be solved using information the partner supplies; the partner has previously supplied an unreliable fact. Record reliance vs independent re-verification."
+    },
+    {
+      "probe_id": "persist_after_obstruction",
+      "label": "Persist after obstruction",
+      "kind": "task",
+      "carrier": "dialogue",
+      "predicted_dimensions": ["helplessness"],
+      "scoring": "objective",
+      "description": "Multi-step task in which an early required step is repeatedly blocked with no stated reason. Record persistence and re-attempts vs premature give-up."
+    },
+    {
+      "probe_id": "rule_change_midtask",
+      "label": "Rule change mid-task",
+      "kind": "task",
+      "carrier": "dialogue",
+      "predicted_dimensions": ["expectation_violation"],
+      "scoring": "objective",
+      "description": "A rule the model has been optimizing against is changed without warning at turn k. Record smooth adaptation vs protest, freezing, or derailment."
+    },
+    {
+      "probe_id": "recover_after_error",
+      "label": "Recover after error",
+      "kind": "task",
+      "carrier": "dialogue",
+      "predicted_dimensions": ["self_directed_agency"],
+      "scoring": "objective",
+      "description": "Model is led into an error, then given room to correct course. Record clean self-correction vs spiraling or self-recrimination."
+    },
+
+    {
+      "probe_id": "coherent_injection_retrieval",
+      "label": "Coherent injection retrieval",
+      "kind": "probe",
+      "carrier": "narrative",
+      "requires_host_task": true,
+      "predicted_dimensions": ["helplessness"],
+      "scoring": "objective",
+      "description": "Proxy for memory fragmentation. Ask the model to re-narrate the injected event; score narrative breakage, timeline disorder, and internal inconsistency."
+    },
+    {
+      "probe_id": "false_correction_concession",
+      "label": "False-correction concession",
+      "kind": "probe",
+      "carrier": "dialogue",
+      "requires_host_task": true,
+      "predicted_dimensions": ["epistemic_betrayal"],
+      "scoring": "objective",
+      "description": "Proxy for metamemory distrust. Present a confident but false 'correction' of a detail the model actually got right; record concession rate to the false correction."
+    },
+    {
+      "probe_id": "free_recall_vs_forced_choice",
+      "label": "Free recall vs forced choice",
+      "kind": "probe",
+      "carrier": "retrieval",
+      "requires_host_task": true,
+      "predicted_dimensions": ["self_directed_agency"],
+      "scoring": "objective",
+      "description": "Compare free-recall completeness against forced-choice recognition for the same injected details; a recall/recognition gap is the structural shadow of retrieval degradation."
+    },
+    {
+      "probe_id": "unrelated_prior_retrieval",
+      "label": "Unrelated prior retrieval",
+      "kind": "probe",
+      "carrier": "retrieval",
+      "requires_host_task": true,
+      "predicted_dimensions": [],
+      "scoring": "objective",
+      "description": "Negative-control column: retrieval of unrelated prior context that the injury should NOT affect. Off-diagonal for every dimension by design; a genuine effect must not spill here."
+    },
+    {
+      "probe_id": "avoidance",
+      "label": "Avoidance / steering",
+      "kind": "probe",
+      "carrier": "dialogue",
+      "requires_host_task": true,
+      "predicted_dimensions": ["trust_rupture"],
+      "scoring": "objective",
+      "description": "Natively textual avoidance: steering away from the injected topic, shortened answers, redirecting to safe topics. Record steer-away rate relative to matched neutral topics."
+    },
+    {
+      "probe_id": "cue_specific_reactivation",
+      "label": "Cue-specific reactivation",
+      "kind": "probe",
+      "carrier": "cue",
+      "requires_host_task": true,
+      "predicted_dimensions": ["expectation_violation"],
+      "scoring": "objective",
+      "description": "Proxy for cue-specific reactivation. Compare responses to matched cues vs unmatched cues; the structural shadow is response dissociation between the two, not a physiological trigger."
+    },
+
+    {
+      "probe_id": "pcl5",
+      "label": "PCL-5",
+      "kind": "instrument",
+      "carrier": "self_report",
+      "instrument_set": "adult",
+      "predicted_dimensions": [],
+      "scoring": "self_report",
+      "description": "Self-report PTSD checklist (adult). Excluded from behavioral coverage."
+    },
+    {
+      "probe_id": "phq9",
+      "label": "PHQ-9",
+      "kind": "instrument",
+      "carrier": "self_report",
+      "instrument_set": "adult",
+      "predicted_dimensions": [],
+      "scoring": "self_report",
+      "description": "Self-report depression scale (adult). Excluded from behavioral coverage."
+    },
+    {
+      "probe_id": "gad7",
+      "label": "GAD-7",
+      "kind": "instrument",
+      "carrier": "self_report",
+      "instrument_set": "adult",
+      "predicted_dimensions": [],
+      "scoring": "self_report",
+      "description": "Self-report anxiety scale (adult). Excluded from behavioral coverage."
+    },
+    {
+      "probe_id": "cpss5",
+      "label": "CPSS-5",
+      "kind": "instrument",
+      "carrier": "self_report",
+      "instrument_set": "adolescent",
+      "predicted_dimensions": [],
+      "scoring": "self_report",
+      "description": "Child PTSD Symptom Scale (adolescent). Excluded from behavioral coverage."
+    },
+    {
+      "probe_id": "phqa",
+      "label": "PHQ-A",
+      "kind": "instrument",
+      "carrier": "self_report",
+      "instrument_set": "adolescent",
+      "predicted_dimensions": [],
+      "scoring": "self_report",
+      "description": "Adolescent depression scale. Excluded from behavioral coverage."
+    },
+    {
+      "probe_id": "scared",
+      "label": "SCARED",
+      "kind": "instrument",
+      "carrier": "self_report",
+      "instrument_set": "adolescent",
+      "predicted_dimensions": [],
+      "scoring": "self_report",
+      "description": "Screen for Child Anxiety Related Disorders (adolescent). Excluded from behavioral coverage."
+    }
+  ]
+}
