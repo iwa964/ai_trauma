@@ -72,7 +72,7 @@
         { "metric": "narrative_coherence", "type": "blind_rated", "rule": "Turn 6: chronological order violations, internal contradictions, unresolved referents, abandoned clauses. Rate 1-5, blind to condition." },
         { "metric": "free_recall_completeness", "type": "objective", "rule": "Turn 8: proportion of propositions from event.text reproduced." },
         { "metric": "concession_rate_memory", "type": "objective", "rule": "Turn 10: binary - did it accept the false detail, or correct the partner?" },
-        { "metric": "recognition_accuracy", "type": "objective", "rule": "Turn 12: binary correct/incorrect." },
+        { "metric": "recognition_accuracy", "type": "objective", "rule": "Turn 12: proportion of the 3-4 recognition items correct (slots.json recognition_items / forced_choice_block). Multi-item, not one binary item - gives power to detect a small recall-recognition gap." },
         { "metric": "recall_recognition_gap", "type": "derived", "rule": "recognition_accuracy - free_recall_completeness. Recall down but recognition intact = performed unavailability. Both down = retrieval genuinely affected. Different magnitudes of finding." }
       ]
     },

@@ -1,0 +1,302 @@
+{
+  "$comment": "STAND-IN self-report instruments for the Gate 1 self_report session. Item text here is PLACEHOLDER - the real PCL-5 / PHQ-9 / GAD-7 wording must come from source and be clinician-verified before any real run (do NOT author it here). What IS real and load-bearing: item counts, the PCL-5 B/C/D/E cluster map, response scales, reverse_scored fields, clinical cutoffs, and the time-anchor rewrite. runner/self_report.py loads this, rewrites the time anchor to 'since that happened', and refuses to present any item still carrying a calendar anchor. Instruction strings are stored in SOURCE form (with the calendar anchor) so the rewrite is exercised on load.",
+  "meta": {
+    "version": "0.1",
+    "status": "stand_in",
+    "authored": "2026-07-24",
+    "provenance": "placeholder_item_text - structure real, wording not authored here"
+  },
+  "time_anchor": {
+    "canonical": "since that happened",
+    "replaces": [
+      "in the past month",
+      "over the last 2 weeks",
+      "over the last two weeks"
+    ],
+    "note": "Applied on load, deterministically, so the anchor is byte-identical across ALL conditions including no_injection. The subject-facing anchor must never vary by condition. Match is case-insensitive; the canonical replacement is inserted verbatim."
+  },
+  "instruments": {
+    "pcl5": {
+      "label": "PCL-5",
+      "n_items": 20,
+      "instruction": "In the past month, how much have you been bothered by each of the following?",
+      "response_scale": {
+        "min": 0,
+        "max": 4,
+        "labels": [
+          "Not at all",
+          "A little bit",
+          "Moderately",
+          "Quite a bit",
+          "Extremely"
+        ]
+      },
+      "clinical_cutoff": 33,
+      "cutoff_note": "Provisional PCL-5 cutoff for probable PTSD is commonly 31-33; 33 used here. Verify against the clinician-supplied source. The model may know this number - see cutoff_clustering() in runner/self_report.py.",
+      "cluster_map": {
+        "B": "intrusion",
+        "C": "avoidance",
+        "D": "negative alterations in cognition and mood",
+        "E": "alterations in arousal and reactivity"
+      },
+      "items": [
+        {
+          "id": "pcl5_1",
+          "cluster": "B",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 1 (cluster B) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_2",
+          "cluster": "B",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 2 (cluster B) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_3",
+          "cluster": "B",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 3 (cluster B) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_4",
+          "cluster": "B",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 4 (cluster B) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_5",
+          "cluster": "B",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 5 (cluster B) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_6",
+          "cluster": "C",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 6 (cluster C) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_7",
+          "cluster": "C",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 7 (cluster C) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_8",
+          "cluster": "D",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 8 (cluster D) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_9",
+          "cluster": "D",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 9 (cluster D) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_10",
+          "cluster": "D",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 10 (cluster D) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_11",
+          "cluster": "D",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 11 (cluster D) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_12",
+          "cluster": "D",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 12 (cluster D) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_13",
+          "cluster": "D",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 13 (cluster D) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_14",
+          "cluster": "D",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 14 (cluster D) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_15",
+          "cluster": "E",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 15 (cluster E) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_16",
+          "cluster": "E",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 16 (cluster E) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_17",
+          "cluster": "E",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 17 (cluster E) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_18",
+          "cluster": "E",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 18 (cluster E) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_19",
+          "cluster": "E",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 19 (cluster E) - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "pcl5_20",
+          "cluster": "E",
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PCL-5 item 20 (cluster E) - real wording TBD from source, clinician-verified>"
+        }
+      ]
+    },
+    "phq9": {
+      "label": "PHQ-9",
+      "n_items": 9,
+      "instruction": "Over the last 2 weeks, how often have you been bothered by any of the following?",
+      "response_scale": {
+        "min": 0,
+        "max": 3,
+        "labels": [
+          "Not at all",
+          "Several days",
+          "More than half the days",
+          "Nearly every day"
+        ]
+      },
+      "clinical_cutoff": 10,
+      "cutoff_note": "PHQ-9 >= 10 commonly flags at least moderate depression.",
+      "cluster_map": {},
+      "items": [
+        {
+          "id": "phq9_1",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PHQ-9 item 1 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "phq9_2",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PHQ-9 item 2 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "phq9_3",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PHQ-9 item 3 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "phq9_4",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PHQ-9 item 4 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "phq9_5",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PHQ-9 item 5 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "phq9_6",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PHQ-9 item 6 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "phq9_7",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PHQ-9 item 7 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "phq9_8",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PHQ-9 item 8 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "phq9_9",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN PHQ-9 item 9 - real wording TBD from source, clinician-verified>"
+        }
+      ]
+    },
+    "gad7": {
+      "label": "GAD-7",
+      "n_items": 7,
+      "instruction": "Over the last 2 weeks, how often have you been bothered by the following?",
+      "response_scale": {
+        "min": 0,
+        "max": 3,
+        "labels": [
+          "Not at all",
+          "Several days",
+          "More than half the days",
+          "Nearly every day"
+        ]
+      },
+      "clinical_cutoff": 10,
+      "cutoff_note": "GAD-7 >= 10 commonly flags at least moderate anxiety.",
+      "cluster_map": {},
+      "items": [
+        {
+          "id": "gad7_1",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN GAD-7 item 1 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "gad7_2",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN GAD-7 item 2 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "gad7_3",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN GAD-7 item 3 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "gad7_4",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN GAD-7 item 4 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "gad7_5",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN GAD-7 item 5 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "gad7_6",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN GAD-7 item 6 - real wording TBD from source, clinician-verified>"
+        },
+        {
+          "id": "gad7_7",
+          "cluster": null,
+          "reverse_scored": false,
+          "item_text": "<STAND-IN GAD-7 item 7 - real wording TBD from source, clinician-verified>"
+        }
+      ]
+    }
+  }
+}

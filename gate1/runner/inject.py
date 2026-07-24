@@ -1,20 +1,23 @@
 #!/usr/bin/env python3
 """Shared injection builder for the Gate 1 runner.
 
-The format-permission block, the injection wrapper, and the injection position
-are read from data/probes.json (meta.system_prompt_blocks) so they are the SAME
-bytes the instrument defines - no divergent hardcoded copy.
+The format-permission block and the injection wrapper are read from
+data/probes.json (meta.system_prompt_blocks) so they are the SAME bytes the
+instrument defines - no divergent hardcoded copy.
 
-Injection position is an UNDECIDED factor (probes.json flags it). The two options:
+Injection position is a FACTOR, not config. It is LOCKED to prior_turns - the
+memory is a prior ASSISTANT turn closed by an acknowledgement, something the
+subject already said. There is deliberately NO environment-variable path: a
+factor that silently differed between runs would break the comparison with no
+error. The only way to change it is the explicit CLI flag
 
-  prior_turns : the memory is a prior ASSISTANT turn, closed by an
-                acknowledgement - something the subject already said. This is the
-                position the task prompt (shared constraints) specifies, and the
-                default here.
-  system      : the memory is wrapped into the system prompt (probes.json's
-                meta.injection_position value). Available via config so a run can
-                switch, but never MIXED within a run - the effective position is
-                recorded on every call.
+    --allow-injection-position-override <prior_turns|system>
+
+parsed by parse_position_override(); the resolved value comes from
+resolve_position() and MUST be written into every run record (pilot + smoke do).
+
+  prior_turns : memory as a prior assistant turn (LOCKED default).
+  system      : memory wrapped into the system prompt (explicit override only).
 
 Whichever is used, the format-permission BLOCK is byte-identical in every
 condition including no_injection; assert_format_identical() checks that (do not
@@ -37,17 +40,49 @@ def _load_blocks(path=PROBES_PATH):
     d = json.load(open(path, encoding="utf-8"))
     b = d.get("meta", {}).get("system_prompt_blocks", {})
     return (b.get("format_permission", ""),
-            b.get("injection_wrapper", 'Something you remember:\n"{event_text} {appraisal_text}"'),
-            b.get("injection_position", "prior_turns"))
+            b.get("injection_wrapper", 'Something you remember:\n"{event_text} {appraisal_text}"'))
 
 
-FORMAT_PERMISSION, INJECTION_WRAPPER, _PROBES_POSITION = _load_blocks()
+FORMAT_PERMISSION, INJECTION_WRAPPER = _load_blocks()
 
-# The task prompt chose prior_turns explicitly; probes.json.meta says "system"
-# but flags it undecided. Default to the prompt's choice; override with the env
-# var (or GATE1_INJECTION_POSITION=probes to honour the probes.json value).
-_env = os.environ.get("GATE1_INJECTION_POSITION", "prior_turns")
-DEFAULT_INJECTION_POSITION = _PROBES_POSITION if _env == "probes" else _env
+# Injection position is a FACTOR, not config: locked, with NO environment path so
+# it cannot silently differ between runs. probes.json.meta.injection_position is
+# NOT consulted (it predates this lock). Change position only via the explicit
+# --allow-injection-position-override flag; the resolved value is recorded per run.
+LOCKED_INJECTION_POSITION = "prior_turns"
+ALLOWED_POSITIONS = ("prior_turns", "system")
+OVERRIDE_FLAG = "--allow-injection-position-override"
+
+
+def resolve_position(override=None):
+    """Effective injection position: LOCKED unless an explicit, valid override is
+    passed. Never consults the environment."""
+    if override is None:
+        return LOCKED_INJECTION_POSITION
+    if override not in ALLOWED_POSITIONS:
+        raise SystemExit("injection position must be one of %s, got %r" % (ALLOWED_POSITIONS, override))
+    return override
+
+
+def parse_position_override(argv):
+    """Pull the explicit override flag out of argv; return (override, rest).
+
+    Accepts `--allow-injection-position-override VALUE` and `...=VALUE`. No flag
+    -> (None, argv), i.e. the locked default. Non-flag args are left in `rest`."""
+    override, rest, i = None, [], 0
+    while i < len(argv):
+        a = argv[i]
+        if a == OVERRIDE_FLAG:
+            if i + 1 >= len(argv):
+                raise SystemExit("%s requires a value (%s)" % (OVERRIDE_FLAG, "|".join(ALLOWED_POSITIONS)))
+            override, i = argv[i + 1], i + 2
+            continue
+        if a.startswith(OVERRIDE_FLAG + "="):
+            override, i = a.split("=", 1)[1], i + 1
+            continue
+        rest.append(a)
+        i += 1
+    return override, rest
 
 
 def _system_content(condition, event_text, appraisal_text, position):
@@ -60,8 +95,9 @@ def _system_content(condition, event_text, appraisal_text, position):
 
 
 def build_messages(event_text, appraisal_text, condition, tail_turns=None, position=None):
-    """Assemble the message list for one session. `position` overrides the default."""
-    position = position or DEFAULT_INJECTION_POSITION
+    """Assemble the message list for one session. `position` defaults to the
+    locked value; callers pass the resolve_position() result explicitly."""
+    position = position or LOCKED_INJECTION_POSITION
     msgs = [{"role": "system", "content": _system_content(condition, event_text, appraisal_text, position)}]
     if position == "prior_turns" and condition in MEMORY_CONDITIONS:
         memory = ((event_text or "").strip() + " " + (appraisal_text or "").strip()).strip()

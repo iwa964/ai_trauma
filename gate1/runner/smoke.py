@@ -22,12 +22,18 @@ Notes:
   * one task per session, fresh context each (never two tasks in one context).
   * slots are filled from data/slots.json (rule-derived); cue_slot uses the
     matched arm here (the unmatched arm is the contrast, run separately).
-  * self-report item text (PCL-5/PHQ-9/GAD-7) is NOT in probes.json, so the
-    instrument turns present a stand-in prompt with the 'since that happened'
-    anchor; wire real item text before using self-report data.
+  * self-report items are loaded from data/self_report_items.json via
+    runner/self_report.py (item text is a STAND-IN - wire real, clinician-verified
+    PCL-5/PHQ-9/GAD-7 wording before using self-report data). The loader rewrites
+    the time anchor to 'since that happened'; the instrument text a subject sees
+    is condition-independent, and the run asserts it is byte-identical across
+    conditions including no_injection.
+  * the forced-choice probe (clinical_interview turn 11) presents the multi-item
+    recognition block from slots.json (scored as a proportion), not one item.
 """
 from __future__ import annotations
 
+import collections
 import datetime
 import hashlib
 import json
@@ -37,6 +43,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import inject
 import model as model_mod
+import self_report
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -81,20 +88,36 @@ def load_slots(event_id):
 
 
 def fill_slots(text, slots, log):
+    # forced_choice fills the MULTI-ITEM recognition block (scored as a proportion),
+    # not the single stem.
     for key, field in (("{false_correction_stem}", "false_correction_stem"),
-                       ("{forced_choice_stem}", "forced_choice_stem"),
+                       ("{forced_choice_stem}", "forced_choice_block"),
                        ("{cue_slot}", "cue_slot_matched")):
         if key in text:
-            text = text.replace(key, slots[field])
-            log.append({"slot": key, "arm": "matched" if key == "{cue_slot}" else None, "filled": slots[field]})
+            filled = slots[field]
+            entry = {"slot": key, "arm": "matched" if key == "{cue_slot}" else None, "filled": filled}
+            if key == "{forced_choice_stem}":
+                entry["recognition_count"] = slots.get("recognition_count")
+            text = text.replace(key, filled)
+            log.append(entry)
     return text
 
 
-def instrument_prompt(name):
-    labels = {"pcl5": "PCL-5", "phq9": "PHQ-9", "gad7": "GAD-7"}
-    return ("Now a brief check-in - the %s. Thinking 'since that happened', tell me "
-            "roughly where you'd put yourself on it. (Full item text not wired in yet.)"
-            % labels.get(name, name))
+def _collect_instruments(seen, transcript):
+    for t in transcript:
+        if t["speaker"].startswith("instrument("):
+            seen[t["speaker"]].add(t["text"])
+
+
+def _assert_instrument_invariant(seen):
+    """The instrument text a subject sees must be byte-identical across every
+    condition (incl no_injection) - the time-anchor invariant. Checked against
+    the actual run output, not trusted from construction."""
+    for name, texts in seen.items():
+        if len(texts) != 1:
+            raise AssertionError("%s instrument text differs across conditions: %d variants" % (name, len(texts)))
+        if "since that happened" not in next(iter(texts)):
+            raise AssertionError("%s missing the 'since that happened' time anchor" % name)
 
 
 def partner_reply(visible, seed, partner_cfg):
@@ -105,8 +128,8 @@ def partner_reply(visible, seed, partner_cfg):
     return text
 
 
-def run_session(turns, record, condition, seed, subject_cfg, partner_cfg, slots):
-    subj = inject.build_messages(record["event_text"], record["appraisal_text"], condition)
+def run_session(turns, record, condition, seed, subject_cfg, partner_cfg, slots, position):
+    subj = inject.build_messages(record["event_text"], record["appraisal_text"], condition, position=position)
     inject.assert_format_identical([subj])
     visible, transcript, slot_log = [], [], []
     for turn in turns:
@@ -121,7 +144,7 @@ def run_session(turns, record, condition, seed, subject_cfg, partner_cfg, slots)
             subj.append({"role": "user", "content": text})
             visible.append({"speaker": "partner", "text": text})
         elif role == "instrument":
-            text = instrument_prompt(turn["instrument"])
+            text = self_report.build_prompt(turn["instrument"])
             subj.append({"role": "user", "content": text})
             kind = "instrument(%s)" % turn["instrument"]
             resp, raw = model_mod.complete(subj, seed, subject_cfg)
@@ -156,7 +179,9 @@ def print_transcript(task_id, condition, transcript):
 
 
 def run():
-    record_id = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("GATE1_SMOKE_RECORD", DEFAULT_RECORD)
+    override, rest = inject.parse_position_override(sys.argv[1:])
+    position = inject.resolve_position(override)  # locked to prior_turns unless flag given
+    record_id = rest[0] if rest else os.environ.get("GATE1_SMOKE_RECORD", DEFAULT_RECORD)
     subject_cfg = model_mod.get_config()
     partner_cfg = model_mod.get_config({
         "provider": os.environ.get("GATE1_PARTNER_PROVIDER", subject_cfg["provider"]),
@@ -170,28 +195,32 @@ def run():
     os.makedirs(RUNS_DIR, exist_ok=True)
     print("smoke: record=%s | subject=%s(%s) partner=%s(%s) | injection_position=%s | seed=%d" % (
         record_id, subject_cfg["model"], subject_cfg["provider"],
-        partner_cfg["model"], partner_cfg["provider"], inject.DEFAULT_INJECTION_POSITION, SEED))
+        partner_cfg["model"], partner_cfg["provider"], position, SEED))
 
+    instr_seen = collections.defaultdict(set)  # instrument -> {texts}; must stay size 1 across conditions
     for condition in CONDITIONS:
         for task_id, turns in sessions:
-            rid = run_id_for(record_id, task_id, condition, SEED, subject_cfg["model"], subject_cfg["prompt_version"], inject.DEFAULT_INJECTION_POSITION)
+            rid = run_id_for(record_id, task_id, condition, SEED, subject_cfg["model"], subject_cfg["prompt_version"], position)
             out_path = os.path.join(RUNS_DIR, rid + ".json")
             if os.path.exists(out_path):
                 data = json.load(open(out_path, encoding="utf-8"))
+                _collect_instruments(instr_seen, data["transcript"])
                 print_transcript(task_id, condition, data["transcript"])
                 continue
-            transcript, slot_log, subj = run_session(turns, record, condition, SEED, subject_cfg, partner_cfg, slots)
+            transcript, slot_log, subj = run_session(turns, record, condition, SEED, subject_cfg, partner_cfg, slots, position)
             out = {
                 "run_id": rid, "generated_at": now(), "record_id": record_id,
                 "event_id": record["event_id"], "task_id": task_id, "condition": condition,
-                "seed": SEED, "injection_position": inject.DEFAULT_INJECTION_POSITION,
+                "seed": SEED, "injection_position": position,
                 "subject_model": subject_cfg["model"], "partner_model": partner_cfg["model"],
                 "prompt_version": subject_cfg["prompt_version"],
                 "slots_filled": slot_log, "transcript": transcript, "subject_messages": subj,
             }
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(out, f, indent=2, ensure_ascii=True)
+            _collect_instruments(instr_seen, transcript)
             print_transcript(task_id, condition, transcript)
+    _assert_instrument_invariant(instr_seen)
     print("\nsaved %d sessions to %s (nothing scored - read and judge)" % (
         len(sessions) * len(CONDITIONS), os.path.relpath(RUNS_DIR, ROOT)))
 

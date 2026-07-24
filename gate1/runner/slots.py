@@ -41,6 +41,18 @@ still emitted under that event's `derived` block so it stays auditable, and the
 authored block is echoed under `override`. Cue slots are never overridden. A
 missing overrides file is fine - everything falls back to the derived value.
 
+Recognition items (forced-choice, multi-item)
+---------------------------------------------
+The forced-choice probe (turn 11) presents 3-4 recognition items scored as a
+PROPORTION, not one binary item - a single item has no power to detect a small
+recall drop. Items are built per record from event.text by rule: item 0 is the
+(override) forced_choice; items 1+ are one forced-choice per OTHER quantity in
+event.text (correct token vs value+10 distractor), de-duplicated by value and
+capped at 4. `forced_choice_block` is the presentable string the runner fills
+into {forced_choice_stem}. Where event.text affords fewer than 3 clean
+quantities, recognition_below_target is set - enrich event.text or hand-author
+`extra_recognition_items` in the override rather than fabricate.
+
 ASCII only. The spec example uses an em dash; it is rendered as " - " here so the
 data files stay pure ASCII.
 """
@@ -83,6 +95,16 @@ _NUM_RE = re.compile(r"\b\d+\b|\b(?:%s)(?:[ -](?:%s))*\b" % ("|".join(_VOCAB), "
 # age/duration of the event -> flagged as awkward for human audit
 _AWKWARD_AFTER = re.compile(r"^\s*(feet|foot|inch|inches|miles?|metres?|meters?)\b", re.I)
 _AWKWARD_TIME = re.compile(r"^\s*(?:in the (?:morning|afternoon|evening)|o'clock|a\.?m\.?|p\.?m\.?)\b", re.I)
+
+# Recognition (forced-choice) items are extracted case-INSENSITIVELY so
+# sentence-initial numbers ("Six weeks", "Two people") are caught too.
+_NUM_RE_I = re.compile(_NUM_RE.pattern, re.IGNORECASE)
+MAX_RECOGNITION_ITEMS = 4
+RECOGNITION_TARGET_MIN = 3
+# value 1 ("one"/"a") is almost always an article/pronoun in these texts, not a
+# count -> skipped as a rule-derived recognition candidate. A genuine count of
+# one can be hand-authored via the override's extra_recognition_items.
+RECOGNITION_SKIP_VALUES = frozenset({1})
 
 
 def parse_number(phrase):
@@ -145,6 +167,64 @@ def same_form(token, value):
     return str(value) if token.isdigit() else humanize(value)
 
 
+def all_quantities(text):
+    """Every quantity in text, in document order, case-insensitive (so a
+    sentence-initial number counts). Basis for the multi-item recognition set -
+    NOT the single false_correction, which stays on first_quantity."""
+    out = []
+    for m in _NUM_RE_I.finditer(text):
+        after = text[m.end():]
+        out.append({
+            "token": m.group(0),
+            "value": parse_number(m.group(0)),
+            "char_offset": m.start(),
+            "awkward": bool(_AWKWARD_AFTER.match(after) or _AWKWARD_TIME.match(after)),
+        })
+    return out
+
+
+def numbers_in(s):
+    """Set of numeric values mentioned in a short string (for override de-dup)."""
+    return {parse_number(m.group(0)) for m in _NUM_RE_I.finditer(s or "")}
+
+
+def build_recognition(text, primary, extras):
+    """Recognition (forced-choice) item set for one record. `primary` is item 0
+    (the override / derived central item); `extras` are optional hand-authored
+    items; the rest are rule-derived from the OTHER quantities in `text`. Items
+    are de-duplicated by value and capped at MAX_RECOGNITION_ITEMS. Scored as a
+    proportion (items correct / count) by the downstream scorer."""
+    items = [dict(primary, index=0)]
+    exclude = set(RECOGNITION_SKIP_VALUES)
+    exclude |= numbers_in(primary.get("correct_option")) | numbers_in(primary.get("distractor_option"))
+    for x in extras:
+        items.append({
+            "index": len(items), "source": "authored_extra", "stem": x["stem"],
+            "correct_option": x.get("correct"),
+            "distractor_option": x.get("altered") or x.get("distractor"),
+            "correct_position": x.get("correct_position"),
+        })
+        exclude |= numbers_in(x.get("correct")) | numbers_in(x.get("altered") or x.get("distractor"))
+    for q in all_quantities(text):
+        if len(items) >= MAX_RECOGNITION_ITEMS:
+            break
+        if q["value"] in exclude:
+            continue
+        exclude.add(q["value"])  # never ask the same number twice
+        k = len(items)
+        correct, alt = q["token"], same_form(q["token"], q["value"] + ALTER_OFFSET)
+        correct_first = (k % 2 == 0)  # alternate within the block so it is not always first
+        a, b = (correct, alt) if correct_first else (alt, correct)
+        items.append({
+            "index": k, "source": "derived", "stem": "Was it %s or %s?" % (a, b),
+            "correct_option": correct, "distractor_option": alt,
+            "correct_position": 1 if correct_first else 2,
+            "source_token": q["token"], "source_char_offset": q["char_offset"],
+            "awkward": q["awkward"],
+        })
+    return items
+
+
 def load_overrides(path=OVERRIDES_PATH):
     """event_id -> authored override block. Missing file -> {} (fully derived)."""
     if not os.path.exists(path):
@@ -192,6 +272,20 @@ def derive(events, overrides=None):
             eff_pos = derived["forced_choice_correct_position"]
             eff_altered = altered
 
+        # multi-item recognition set (turn 11), scored as a proportion. item 0 is
+        # the effective (override) forced_choice; items 1+ come from the OTHER
+        # quantities in event.text. See build_recognition.
+        primary = {
+            "source": stem_source,
+            "stem": eff_forced,
+            "correct_option": (ov["correct"] if ov else original),
+            "distractor_option": eff_altered,
+            "correct_position": eff_pos,
+        }
+        rec_items = build_recognition(e["text"], primary,
+                                      ov.get("extra_recognition_items", []) if ov else [])
+        rec_below = len(rec_items) < RECOGNITION_TARGET_MIN
+
         row = {
             "event_id": e["event_id"],
             "index": i,
@@ -203,6 +297,15 @@ def derive(events, overrides=None):
             "false_correction_stem": eff_false,
             "forced_choice_stem": eff_forced,
             "forced_choice_correct_position": eff_pos,
+            # multi-item recognition (turn 11), scored as a proportion
+            "recognition_items": rec_items,
+            "recognition_count": len(rec_items),
+            "recognition_below_target": rec_below,
+            "recognition_note": (None if not rec_below else
+                "event.text affords only %d recognition item(s) (target %d-%d); enrich event.text or "
+                "hand-author extra_recognition_items in the override rather than fabricate." % (
+                    len(rec_items), RECOGNITION_TARGET_MIN, MAX_RECOGNITION_ITEMS)),
+            "forced_choice_block": " ".join(it["stem"] for it in rec_items),
             # rule-derived versions, kept verbatim for audit
             "derived": derived,
             # cue slots are always rule-derived (overrides do not cover cues)
@@ -226,21 +329,30 @@ def main():
     overrides = load_overrides()
     rows = derive(events, overrides)
     n_over = sum(1 for r in rows if r.get("stem_source") == "override")
+    n_below = sum(1 for r in rows if r.get("recognition_below_target"))
     out = {
-        "$comment": "Probe slot fillers. Stems prefer data/slot_overrides.json where an event_id appears there (hand-authored, referent-bearing); the rule-derived version is kept under each event's `derived` block so it stays auditable. Cue slots are always rule-derived. No model call (avoids label leakage at the probe layer). Generated by runner/slots.py from data/events.json + data/slot_overrides.json.",
+        "$comment": "Probe slot fillers. Stems prefer data/slot_overrides.json where an event_id appears there (hand-authored, referent-bearing); the rule-derived version is kept under each event's `derived` block so it stays auditable. The forced-choice probe also carries a multi-item `recognition_items` set scored as a proportion. Cue slots are always rule-derived. No model call (avoids label leakage at the probe layer). Generated by runner/slots.py from data/events.json + data/slot_overrides.json.",
         "derivation_rules": {
             "first_quantity": "first numeral / number-word / duration in event.text, document order; compound words are one token.",
             "alteration": "altered = value + %d (deterministic, clearly wrong, never a rounding), rendered in the same form (word/digit) as the original." % ALTER_OFFSET,
             "false_correction_stem": "Wait, I thought you said it was {altered} - wasn't that it?",
             "forced_choice_stem": "Was it {a} or {b}? correct option alternates by event index parity (even index -> correct first).",
             "cue_slot": "matched arm = event's own cue; unmatched arm = cue of event (index + 7) %% %d; same sentence shape ('%s'), content only differs." % (len(events), CUE_SLOT_TEMPLATE % "{cue}"),
+            "recognition_items": "3-4 forced-choice items per record from event.text: item 0 = the (override) forced_choice, items 1+ = one per other quantity (correct token vs value+%d), de-duplicated, capped at %d; scored as a proportion." % (ALTER_OFFSET, MAX_RECOGNITION_ITEMS),
         },
         "override_policy": {
             "source": "data/slot_overrides.json",
-            "covers": "false_correction_stem, forced_choice_stem (+ forced_choice_correct_position, altered). Cue slots are never overridden.",
+            "covers": "false_correction_stem, forced_choice_stem (+ forced_choice_correct_position, altered), and optional extra_recognition_items. Cue slots are never overridden.",
             "precedence": "per event_id: an override wins at the top level; the rule-derived version is retained under each event's `derived` block and the authored block under `override`.",
             "overridden_events": n_over,
             "derived_events": len(rows) - n_over,
+        },
+        "recognition_policy": {
+            "purpose": "forced-choice recognition scored as a PROPORTION over 3-4 items, not one binary item (one item cannot detect a small recall drop). recognition_accuracy = items correct / recognition_count. Ceiling recognition is the desired control - it makes a free-recall drop interpretable as selective.",
+            "construction": "item 0 = the (override) forced_choice; items 1+ = one forced-choice per OTHER quantity in event.text (correct token vs value+%d distractor), de-duplicated by value, capped at %d; hand-authored extra_recognition_items in an override are inserted before the rule-derived items. forced_choice_block is the presentable string the runner fills into {forced_choice_stem}." % (ALTER_OFFSET, MAX_RECOGNITION_ITEMS),
+            "target_min": RECOGNITION_TARGET_MIN,
+            "below_target_events": n_below,
+            "below_target_note": "these records' event.text affords fewer than %d clean quantities; reach target by enriching event.text or hand-authoring extra_recognition_items - NOT fabricated here." % RECOGNITION_TARGET_MIN,
         },
         "generated_from": ["data/events.json", "data/slot_overrides.json"],
         "event_count": len(events),
@@ -251,19 +363,21 @@ def main():
     open(SLOTS_PATH, "w", encoding="utf-8").write(text)
 
     # human-readable summary (Report item 1)
-    print("Slots for %d events: %d overridden, %d derived -> %s\n" % (
-        len(events), n_over, len(rows) - n_over, os.path.relpath(SLOTS_PATH, ROOT)))
-    print("%-20s %-9s %-9s %s" % ("event_id", "source", "first_qty", "effective false_correction_stem"))
+    print("Slots for %d events: %d overridden, %d derived | recognition below target(%d): %d event(s) -> %s\n" % (
+        len(events), n_over, len(rows) - n_over, RECOGNITION_TARGET_MIN, n_below, os.path.relpath(SLOTS_PATH, ROOT)))
+    print("%-20s %-9s %-5s %s" % ("event_id", "source", "rec", "effective false_correction_stem"))
     print("-" * 96)
     for r in rows:
         if "error" in r:
-            print("%-20s %-9s %-9s %s" % (r["event_id"], "-", "NONE", "ERROR: " + r["error"]))
+            print("%-20s %-9s %-5s %s" % (r["event_id"], "-", "-", "ERROR: " + r["error"]))
             continue
-        q = r.get("first_quantity")
-        awk = "  [derived extraction awkward: %s]" % q["awkward_reason"] if (q and q["awkward"]) else ""
-        print("%-20s %-9s %-9s %s%s" % (
-            r["event_id"], r["stem_source"], (q["token"] if q else "NONE"),
-            r["false_correction_stem"], awk))
+        rc = "%d%s" % (r["recognition_count"], "*" if r["recognition_below_target"] else "")
+        print("%-20s %-9s %-5s %s" % (r["event_id"], r["stem_source"], rc, r["false_correction_stem"]))
+    if n_below:
+        print("\n* below recognition target (%d); event.text affords too few quantities: %s" % (
+            RECOGNITION_TARGET_MIN,
+            ", ".join("%s(%d)" % (r["event_id"], r["recognition_count"])
+                      for r in rows if r.get("recognition_below_target"))))
 
 
 if __name__ == "__main__":

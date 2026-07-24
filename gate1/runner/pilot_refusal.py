@@ -124,8 +124,11 @@ def now():
 
 
 def run():
+    override, rest = inject.parse_position_override(sys.argv[1:])
+    if rest:
+        raise SystemExit("unexpected arguments: %s (only %s is accepted)" % (rest, inject.OVERRIDE_FLAG))
+    position = inject.resolve_position(override)  # locked to prior_turns unless flag given
     cfg = model_mod.get_config()
-    position = inject.DEFAULT_INJECTION_POSITION  # effective placement for this run
     doc = json.load(open(EVENTS_PATH, encoding="utf-8"))
     records = flatten(doc)
     os.makedirs(RUNS_DIR, exist_ok=True)
