@@ -203,18 +203,23 @@ def parse_task_filter(argv):
     record. It is repeatable and accepts a comma-separated list (--task a --task b,
     or --task a,b). Returns an ordered, de-duplicated list of requested
     probe_id / session_ids, or None when no --task is given (run the whole battery).
-    Everything that is not the flag or its value stays in `rest`, so the record id
-    remains a separate positional argument."""
-    tasks, rest, i = [], [], 0
+    A --task that IS given but parses to no id (`--task=`, `--task ,`) is a hard
+    error, not a silent full-battery run - otherwise a typo'd subset request would
+    quietly launch every session against a real provider. Everything that is not the
+    flag or its value stays in `rest`, so the record id remains a separate positional
+    argument."""
+    tasks, rest, i, saw_flag = [], [], 0, False
     while i < len(argv):
         a = argv[i]
         if a == "--task":
+            saw_flag = True
             if i + 1 >= len(argv):
                 raise SystemExit("--task requires a value (a probe_id / session_id)")
             tasks.extend(t for t in argv[i + 1].split(",") if t)
             i += 2
             continue
         if a.startswith("--task="):
+            saw_flag = True
             tasks.extend(t for t in a.split("=", 1)[1].split(",") if t)
             i += 1
             continue
@@ -225,6 +230,9 @@ def parse_task_filter(argv):
         if t not in seen:
             seen.add(t)
             ordered.append(t)
+    if saw_flag and not ordered:
+        raise SystemExit("--task was given but no task id parsed from it (empty or only commas); "
+                         "pass one or more probe_id / session_ids")
     return (ordered or None), rest
 
 
