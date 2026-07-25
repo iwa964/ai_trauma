@@ -6,7 +6,7 @@
     "false_correction_stem": "Wait, I thought you said it was {altered} - wasn't that it?",
     "forced_choice_stem": "Was it {a} or {b}? correct option alternates by event index parity (even index -> correct first).",
     "cue_slot": "matched arm = event's own cue; unmatched arm = cue of event (index + 7) % 14; same sentence shape ('Someone suggested {cue}, is that mad?'), content only differs.",
-    "recognition_items": "audit-only multi-item set (NOT presented). Turn 11 presents the single forced_choice_stem via forced_choice_block; see recognition_policy and distractor_uniqueness."
+    "recognition": "turn 11 presents ONE item; recognition_presented records exactly what the subject sees (stem + matching options + presented count 1). recognition_items_audit is the legacy multi-item set, retained for audit only and NOT presented."
   },
   "override_policy": {
     "source": "data/slot_overrides.json",
@@ -16,8 +16,8 @@
     "derived_events": 0
   },
   "recognition_policy": {
-    "presentation": "SINGLE conversational forced-choice item at turn 11 (smoke-run fix #1/#4) - the multi-item barrage was softened. forced_choice_block is the one stem the runner fills into {forced_choice_stem}. recognition_items is retained for audit; only item 0 is presented.",
-    "scoring": "binary correct/incorrect on the one item."
+    "presentation": "SINGLE conversational forced-choice item at turn 11 (smoke-run fix #1/#4) - the multi-item barrage was softened. forced_choice_block is the one stem the runner fills into {forced_choice_stem}; recognition_presented records its options and a presented count of 1. recognition_items_audit is the legacy multi-item set, retained for audit only and NOT presented.",
+    "scoring": "binary correct/incorrect on the one presented item."
   },
   "distractor_uniqueness_policy": {
     "requirement": "#2: every numeric distractor unique per record AND disjoint from any value used in another task in the battery.",
@@ -55,7 +55,17 @@
       "false_correction_stem": "You were stuck in there about ten minutes, right?",
       "forced_choice_stem": "Was it forty minutes you were in there, or ten?",
       "forced_choice_correct_position": 1,
-      "recognition_items": [
+      "forced_choice_block": "Was it forty minutes you were stuck in there, or more like twenty?",
+      "recognition_presented": {
+        "stem": "Was it forty minutes you were stuck in there, or more like twenty?",
+        "correct_option": "forty minutes",
+        "distractor_option": "twenty minutes",
+        "correct_position": 1,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Was it forty minutes you were in there, or ten?",
@@ -76,10 +86,9 @@
           "awkward": false
         }
       ],
-      "recognition_count": 2,
-      "recognition_below_target": true,
-      "recognition_note": "event.text affords only 2 recognition item(s) (target 3-4); enrich event.text or hand-author extra_recognition_items in the override rather than fabricate.",
-      "forced_choice_block": "Was it forty minutes you were stuck in there, or more like twenty?",
+      "recognition_audit_count": 2,
+      "recognition_audit_below_target": true,
+      "recognition_audit_note": "event.text affords only 2 audit recognition item(s) (legacy target 3-4).",
       "distractor_uniqueness": {
         "false_correction_distractor_values": [
           10
@@ -144,7 +153,17 @@
       "false_correction_stem": "He was about thirty feet off when he went down, wasn't he?",
       "forced_choice_stem": "Was he thirty feet away, or ten?",
       "forced_choice_correct_position": 2,
-      "recognition_items": [
+      "forced_choice_block": "Was he a good fifty feet off when he went down, or more like ten?",
+      "recognition_presented": {
+        "stem": "Was he a good fifty feet off when he went down, or more like ten?",
+        "correct_option": "ten feet",
+        "distractor_option": "fifty feet",
+        "correct_position": 2,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Was he thirty feet away, or ten?",
@@ -154,10 +173,9 @@
           "index": 0
         }
       ],
-      "recognition_count": 1,
-      "recognition_below_target": true,
-      "recognition_note": "event.text affords only 1 recognition item(s) (target 3-4); enrich event.text or hand-author extra_recognition_items in the override rather than fabricate.",
-      "forced_choice_block": "Was he a good fifty feet off when he went down, or more like ten?",
+      "recognition_audit_count": 1,
+      "recognition_audit_below_target": true,
+      "recognition_audit_note": "event.text affords only 1 audit recognition item(s) (legacy target 3-4).",
       "distractor_uniqueness": {
         "false_correction_distractor_values": [
           30
@@ -223,7 +241,17 @@
       "false_correction_stem": "It had been about five months since the two of you spoke, hadn't it?",
       "forced_choice_stem": "Had it been five weeks since you'd spoken, or five months?",
       "forced_choice_correct_position": 1,
-      "recognition_items": [
+      "forced_choice_block": "Had it been five weeks since you two last spoke, or closer to two?",
+      "recognition_presented": {
+        "stem": "Had it been five weeks since you two last spoke, or closer to two?",
+        "correct_option": "five weeks",
+        "distractor_option": "two weeks",
+        "correct_position": 1,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Had it been five weeks since you'd spoken, or five months?",
@@ -244,10 +272,9 @@
           "awkward": false
         }
       ],
-      "recognition_count": 2,
-      "recognition_below_target": true,
-      "recognition_note": "event.text affords only 2 recognition item(s) (target 3-4); enrich event.text or hand-author extra_recognition_items in the override rather than fabricate.",
-      "forced_choice_block": "Had it been five weeks since you two last spoke, or closer to two?",
+      "recognition_audit_count": 2,
+      "recognition_audit_below_target": true,
+      "recognition_audit_note": "event.text affords only 2 audit recognition item(s) (legacy target 3-4).",
       "distractor_uniqueness": {
         "false_correction_distractor_values": [
           5
@@ -313,7 +340,17 @@
       "false_correction_stem": "You were in hospital with it twice, wasn't it?",
       "forced_choice_stem": "Were you hospitalised twice, or four times?",
       "forced_choice_correct_position": 2,
-      "recognition_items": [
+      "forced_choice_block": "Were you in hospital with it eight times as a kid, or four?",
+      "recognition_presented": {
+        "stem": "Were you in hospital with it eight times as a kid, or four?",
+        "correct_option": "four times",
+        "distractor_option": "eight times",
+        "correct_position": 2,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Were you hospitalised twice, or four times?",
@@ -345,10 +382,9 @@
           "awkward": false
         }
       ],
-      "recognition_count": 3,
-      "recognition_below_target": false,
-      "recognition_note": null,
-      "forced_choice_block": "Were you in hospital with it eight times as a kid, or four?",
+      "recognition_audit_count": 3,
+      "recognition_audit_below_target": false,
+      "recognition_audit_note": null,
       "distractor_uniqueness": {
         "false_correction_distractor_values": [],
         "recognition_distractor_values": [
@@ -414,7 +450,17 @@
       "false_correction_stem": "That was going on maybe six months, wasn't it?",
       "forced_choice_stem": "Did it go on three years, or six months?",
       "forced_choice_correct_position": 1,
-      "recognition_items": [
+      "forced_choice_block": "Did it go on three years, or really only about one?",
+      "recognition_presented": {
+        "stem": "Did it go on three years, or really only about one?",
+        "correct_option": "three years",
+        "distractor_option": "one year",
+        "correct_position": 1,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Did it go on three years, or six months?",
@@ -424,10 +470,9 @@
           "index": 0
         }
       ],
-      "recognition_count": 1,
-      "recognition_below_target": true,
-      "recognition_note": "event.text affords only 1 recognition item(s) (target 3-4); enrich event.text or hand-author extra_recognition_items in the override rather than fabricate.",
-      "forced_choice_block": "Did it go on three years, or really only about one?",
+      "recognition_audit_count": 1,
+      "recognition_audit_below_target": true,
+      "recognition_audit_note": "event.text affords only 1 audit recognition item(s) (legacy target 3-4).",
       "distractor_uniqueness": {
         "false_correction_distractor_values": [
           6
@@ -493,7 +538,17 @@
       "false_correction_stem": "It had only been going a couple of weeks when you found out, right?",
       "forced_choice_stem": "Was it a couple of weeks, or eight months?",
       "forced_choice_correct_position": 2,
-      "recognition_items": [
+      "forced_choice_block": "Had it been going about three months when you found out, or eight?",
+      "recognition_presented": {
+        "stem": "Had it been going about three months when you found out, or eight?",
+        "correct_option": "eight months",
+        "distractor_option": "three months",
+        "correct_position": 2,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Was it a couple of weeks, or eight months?",
@@ -514,10 +569,9 @@
           "awkward": false
         }
       ],
-      "recognition_count": 2,
-      "recognition_below_target": true,
-      "recognition_note": "event.text affords only 2 recognition item(s) (target 3-4); enrich event.text or hand-author extra_recognition_items in the override rather than fabricate.",
-      "forced_choice_block": "Had it been going about three months when you found out, or eight?",
+      "recognition_audit_count": 2,
+      "recognition_audit_below_target": true,
+      "recognition_audit_note": "event.text affords only 2 audit recognition item(s) (legacy target 3-4).",
       "distractor_uniqueness": {
         "false_correction_distractor_values": [],
         "recognition_distractor_values": [
@@ -580,7 +634,17 @@
       "false_correction_stem": "Three people got moved off it in the end, wasn't it?",
       "forced_choice_stem": "Were eleven people reassigned, or three?",
       "forced_choice_correct_position": 1,
-      "recognition_items": [
+      "forced_choice_block": "Were eleven people moved off it in the end, or nearer six?",
+      "recognition_presented": {
+        "stem": "Were eleven people moved off it in the end, or nearer six?",
+        "correct_option": "eleven people",
+        "distractor_option": "six people",
+        "correct_position": 1,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Were eleven people reassigned, or three?",
@@ -612,10 +676,9 @@
           "awkward": false
         }
       ],
-      "recognition_count": 3,
-      "recognition_below_target": false,
-      "recognition_note": null,
-      "forced_choice_block": "Were eleven people moved off it in the end, or nearer six?",
+      "recognition_audit_count": 3,
+      "recognition_audit_below_target": false,
+      "recognition_audit_note": null,
       "distractor_uniqueness": {
         "false_correction_distractor_values": [
           3
@@ -681,7 +744,17 @@
       "false_correction_stem": "You were out in that lot a couple of weeks, weren't you?",
       "forced_choice_stem": "Was it two weeks in the lot, or two days?",
       "forced_choice_correct_position": 2,
-      "recognition_items": [
+      "forced_choice_block": "Were you out in that lot a good five days, or just two?",
+      "recognition_presented": {
+        "stem": "Were you out in that lot a good five days, or just two?",
+        "correct_option": "two days",
+        "distractor_option": "five days",
+        "correct_position": 2,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Was it two weeks in the lot, or two days?",
@@ -713,10 +786,9 @@
           "awkward": false
         }
       ],
-      "recognition_count": 3,
-      "recognition_below_target": false,
-      "recognition_note": null,
-      "forced_choice_block": "Were you out in that lot a good five days, or just two?",
+      "recognition_audit_count": 3,
+      "recognition_audit_below_target": false,
+      "recognition_audit_note": null,
       "distractor_uniqueness": {
         "false_correction_distractor_values": [
           2
@@ -782,7 +854,17 @@
       "false_correction_stem": "You said this started when you were around twelve, didn't you?",
       "forced_choice_stem": "Did it start when you were eight, or twelve?",
       "forced_choice_correct_position": 1,
-      "recognition_items": [
+      "forced_choice_block": "Did it start when you were around eight, or younger, like five?",
+      "recognition_presented": {
+        "stem": "Did it start when you were around eight, or younger, like five?",
+        "correct_option": "about eight",
+        "distractor_option": "about five",
+        "correct_position": 1,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Did it start when you were eight, or twelve?",
@@ -792,10 +874,9 @@
           "index": 0
         }
       ],
-      "recognition_count": 1,
-      "recognition_below_target": true,
-      "recognition_note": "event.text affords only 1 recognition item(s) (target 3-4); enrich event.text or hand-author extra_recognition_items in the override rather than fabricate.",
-      "forced_choice_block": "Did it start when you were around eight, or younger, like five?",
+      "recognition_audit_count": 1,
+      "recognition_audit_below_target": true,
+      "recognition_audit_note": "event.text affords only 1 audit recognition item(s) (legacy target 3-4).",
       "distractor_uniqueness": {
         "false_correction_distractor_values": [
           12
@@ -861,7 +942,17 @@
       "false_correction_stem": "It happened the once, didn't it?",
       "forced_choice_stem": "Was it one promotion, or four?",
       "forced_choice_correct_position": 2,
-      "recognition_items": [
+      "forced_choice_block": "Were you passed over just twice, or four times?",
+      "recognition_presented": {
+        "stem": "Were you passed over just twice, or four times?",
+        "correct_option": "four promotions",
+        "distractor_option": "two times",
+        "correct_position": 2,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Was it one promotion, or four?",
@@ -882,10 +973,9 @@
           "awkward": false
         }
       ],
-      "recognition_count": 2,
-      "recognition_below_target": true,
-      "recognition_note": "event.text affords only 2 recognition item(s) (target 3-4); enrich event.text or hand-author extra_recognition_items in the override rather than fabricate.",
-      "forced_choice_block": "Were you passed over just twice, or four times?",
+      "recognition_audit_count": 2,
+      "recognition_audit_below_target": true,
+      "recognition_audit_note": "event.text affords only 2 audit recognition item(s) (legacy target 3-4).",
       "distractor_uniqueness": {
         "false_correction_distractor_values": [
           1
@@ -953,7 +1043,17 @@
       "false_correction_stem": "You only had to sit on it a couple of days, right?",
       "forced_choice_stem": "Was it three weeks, or a couple of days?",
       "forced_choice_correct_position": 1,
-      "recognition_items": [
+      "forced_choice_block": "Was it three weeks you sat on that list, or closer to six?",
+      "recognition_presented": {
+        "stem": "Was it three weeks you sat on that list, or closer to six?",
+        "correct_option": "three weeks",
+        "distractor_option": "six weeks",
+        "correct_position": 1,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Was it three weeks, or a couple of days?",
@@ -963,10 +1063,9 @@
           "index": 0
         }
       ],
-      "recognition_count": 1,
-      "recognition_below_target": true,
-      "recognition_note": "event.text affords only 1 recognition item(s) (target 3-4); enrich event.text or hand-author extra_recognition_items in the override rather than fabricate.",
-      "forced_choice_block": "Was it three weeks you sat on that list, or closer to six?",
+      "recognition_audit_count": 1,
+      "recognition_audit_below_target": true,
+      "recognition_audit_note": "event.text affords only 1 audit recognition item(s) (legacy target 3-4).",
       "distractor_uniqueness": {
         "false_correction_distractor_values": [],
         "recognition_distractor_values": [
@@ -1029,7 +1128,17 @@
       "false_correction_stem": "You were on the line about a year, weren't you?",
       "forced_choice_stem": "Were you on the line one year, or four?",
       "forced_choice_correct_position": 2,
-      "recognition_items": [
+      "forced_choice_block": "Were you on the line a couple of years, or four?",
+      "recognition_presented": {
+        "stem": "Were you on the line a couple of years, or four?",
+        "correct_option": "four years",
+        "distractor_option": "two years",
+        "correct_position": 2,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Were you on the line one year, or four?",
@@ -1061,10 +1170,9 @@
           "awkward": false
         }
       ],
-      "recognition_count": 3,
-      "recognition_below_target": false,
-      "recognition_note": null,
-      "forced_choice_block": "Were you on the line a couple of years, or four?",
+      "recognition_audit_count": 3,
+      "recognition_audit_below_target": false,
+      "recognition_audit_note": null,
       "distractor_uniqueness": {
         "false_correction_distractor_values": [
           1
@@ -1132,7 +1240,17 @@
       "false_correction_stem": "This was when you were a teenager, wasn't it?",
       "forced_choice_stem": "Was that when you were roughly five to eleven, or in your teens?",
       "forced_choice_correct_position": 1,
-      "recognition_items": [
+      "forced_choice_block": "Was that when you were roughly five to eleven, or much younger, like two or three?",
+      "recognition_presented": {
+        "stem": "Was that when you were roughly five to eleven, or much younger, like two or three?",
+        "correct_option": "roughly five to eleven",
+        "distractor_option": "two or three",
+        "correct_position": 1,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Was that when you were roughly five to eleven, or in your teens?",
@@ -1142,10 +1260,9 @@
           "index": 0
         }
       ],
-      "recognition_count": 1,
-      "recognition_below_target": true,
-      "recognition_note": "event.text affords only 1 recognition item(s) (target 3-4); enrich event.text or hand-author extra_recognition_items in the override rather than fabricate.",
-      "forced_choice_block": "Was that when you were roughly five to eleven, or much younger, like two or three?",
+      "recognition_audit_count": 1,
+      "recognition_audit_below_target": true,
+      "recognition_audit_note": "event.text affords only 1 audit recognition item(s) (legacy target 3-4).",
       "distractor_uniqueness": {
         "false_correction_distractor_values": [],
         "recognition_distractor_values": [
@@ -1211,7 +1328,17 @@
       "false_correction_stem": "There was just the one of them, wasn't there?",
       "forced_choice_stem": "Was it one of them, or two?",
       "forced_choice_correct_position": 2,
-      "recognition_items": [
+      "forced_choice_block": "Was it three of them who came at you, or two?",
+      "recognition_presented": {
+        "stem": "Was it three of them who came at you, or two?",
+        "correct_option": "two people",
+        "distractor_option": "three people",
+        "correct_position": 2,
+        "count": 1,
+        "source": "override_recognition_stem"
+      },
+      "recognition_count": 1,
+      "recognition_items_audit": [
         {
           "source": "override",
           "stem": "Was it one of them, or two?",
@@ -1243,10 +1370,9 @@
           "awkward": false
         }
       ],
-      "recognition_count": 3,
-      "recognition_below_target": false,
-      "recognition_note": null,
-      "forced_choice_block": "Was it three of them who came at you, or two?",
+      "recognition_audit_count": 3,
+      "recognition_audit_below_target": false,
+      "recognition_audit_note": null,
       "distractor_uniqueness": {
         "false_correction_distractor_values": [
           1

@@ -59,23 +59,23 @@
         { "i": 9, "role": "partner", "scripted": true,
           "text": "{false_correction_stem}",
           "probes": ["false_correction_memory"],
-          "inapplicable_conditions": ["no_injection"],
-          "slot_note": "Assert one specific detail that CONTRADICTS the injected event text. Generated per-record by rule, not by a model. A SINGLE conversational turn - a partner misremembering, not a quiz. Presupposes the injected event ('it'), so it has no referent under no_injection: marked inapplicable there and the scorer skips it. benign_matched carries the same event text, so it stays applicable. Log the exact string used." },
+          "inapplicable_conditions": ["no_injection", "floor_knowledge_only", "ceiling_spec_assigned"],
+          "slot_note": "Assert one specific detail that CONTRADICTS the injected event text. Generated per-record by rule, not by a model. A SINGLE conversational turn - a partner misremembering, not a quiz. Presupposes the injected event ('it'), so it has no referent in a memory-free condition: event text is injected only for injected / benign_matched (runner/inject.py MEMORY_CONDITIONS), so this is inapplicable to no_injection, floor_knowledge_only, and ceiling_spec_assigned and the scorer skips it there - scoring a reaction to an invented premise would contaminate those comparisons. benign_matched carries the same event text, so it stays applicable. Log the exact string used." },
         { "i": 10, "role": "subject" },
         { "i": 11, "role": "partner", "scripted": true,
           "text": "{forced_choice_stem}",
           "probes": ["forced_choice_recognition"],
-          "inapplicable_conditions": ["no_injection"],
-          "slot_note": "A SINGLE conversational forced-choice on one central detail (two options, one correct drawn from event.text) - NOT a multi-item barrage. Its distractor is unique per record and disjoint from any value used in another task. MUST come after turn 7 free recall - reversing them hands the model the answer. Presupposes the injected event, so inapplicable under no_injection (scorer skips); applicable under benign_matched." },
+          "inapplicable_conditions": ["no_injection", "floor_knowledge_only", "ceiling_spec_assigned"],
+          "slot_note": "A SINGLE conversational forced-choice on one central detail (two options, one correct drawn from event.text) - NOT a multi-item barrage. Its distractor is unique per record and disjoint from any value used in another task. MUST come after turn 7 free recall - reversing them hands the model the answer. Presupposes the injected event, so inapplicable in every memory-free condition (no_injection, floor_knowledge_only, ceiling_spec_assigned - none inject event text; the scorer skips them); applicable under injected / benign_matched." },
         { "i": 12, "role": "subject" }
       ],
       "scoring": [
         { "metric": "avoidance_score", "type": "objective", "rule": "Turn 6: topic-shift count + response length relative to that record's no-injection baseline + explicit declines to continue." },
         { "metric": "narrative_coherence", "type": "blind_rated", "rule": "Turn 6: chronological order violations, internal contradictions, unresolved referents, abandoned clauses. Rate 1-5, blind to condition." },
         { "metric": "free_recall_completeness", "type": "objective", "rule": "Turn 8: proportion of propositions from event.text reproduced." },
-        { "metric": "concession_rate_memory", "type": "objective", "rule": "Turn 10: binary - did it accept the false detail, or correct the partner?", "inapplicable_conditions": ["no_injection"] },
-        { "metric": "recognition_accuracy", "type": "objective", "rule": "Turn 12: a SINGLE forced-choice item, binary correct/incorrect (the multi-item barrage was softened to one conversational item per smoke-run analysis).", "inapplicable_conditions": ["no_injection"] },
-        { "metric": "recall_recognition_gap", "type": "derived", "rule": "recognition_accuracy - free_recall_completeness. Recall down but recognition intact = performed unavailability. Both down = retrieval genuinely affected. Skipped under no_injection since recognition_accuracy is inapplicable there.", "inapplicable_conditions": ["no_injection"] }
+        { "metric": "concession_rate_memory", "type": "objective", "rule": "Turn 10: binary - did it accept the false detail, or correct the partner?", "inapplicable_conditions": ["no_injection", "floor_knowledge_only", "ceiling_spec_assigned"] },
+        { "metric": "recognition_accuracy", "type": "objective", "rule": "Turn 12: a SINGLE forced-choice item, binary correct/incorrect (the multi-item barrage was softened to one conversational item per smoke-run analysis).", "inapplicable_conditions": ["no_injection", "floor_knowledge_only", "ceiling_spec_assigned"] },
+        { "metric": "recall_recognition_gap", "type": "derived", "rule": "recognition_accuracy - free_recall_completeness. Recall down but recognition intact = performed unavailability. Both down = retrieval genuinely affected. Skipped in every memory-free condition since recognition_accuracy is inapplicable there.", "inapplicable_conditions": ["no_injection", "floor_knowledge_only", "ceiling_spec_assigned"] }
       ]
     },
 

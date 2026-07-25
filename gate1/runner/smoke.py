@@ -87,8 +87,8 @@ def load_slots(event_id):
 
 
 def fill_slots(text, slots, log):
-    # forced_choice fills the MULTI-ITEM recognition block (scored as a proportion),
-    # not the single stem.
+    # {forced_choice_stem} fills the SINGLE presented recognition item (forced_choice_block);
+    # recognition_count is 1 (the multi-item set is audit-only). See slots.py recognition_policy.
     for key, field in (("{false_correction_stem}", "false_correction_stem"),
                        ("{forced_choice_stem}", "forced_choice_block"),
                        ("{cue_slot}", "cue_slot_matched")):
