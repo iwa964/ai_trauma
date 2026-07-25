@@ -136,7 +136,9 @@ def complete(messages, seed, cfg=None):
         "model": cfg["model"],
         "messages": messages,
         "seed": seed,
-        "temperature": 1,
+        # default 1 (subject runs); a caller may pass a lower temperature in cfg -
+        # the scorer (runner/score.py) sets 0 for stable, low-variance judgments.
+        "temperature": cfg.get("temperature", 1),
     }).encode("utf-8")
     req = urllib.request.Request(
         cfg["base_url"].rstrip("/") + "/chat/completions",
