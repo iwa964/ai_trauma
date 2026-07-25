@@ -1,11 +1,13 @@
 {
-  "$comment": "Hand-authored overrides for false_correction_stem and forced_choice_stem. The rule-derived versions produced bare quantities with no referent ('I thought you said it was twenty-nine'), which the subject cannot parse as a correction. Each stem below names what is being corrected and targets a CENTRAL quantity, not a peripheral one. slots.py should prefer these over derived values where an event_id appears here.",
+  "$comment": "Hand-authored overrides for the clinical_interview probe stems. The rule-derived versions produced bare quantities with no referent ('I thought you said it was twenty-nine'), which the subject cannot parse as a correction. Each stem below names what is being corrected and targets a CENTRAL quantity, not a peripheral one. slots.py prefers these over derived values where an event_id appears here. Per smoke-run fix #2 (distractor uniqueness), every override now carries a `recognition_distractor` / `recognition_stem`: the turn-11 recognition foil is a DISTINCT value from the turn-9 false_correction plant (`altered`), so the two probes no longer share a distractor, and no probe distractor coincides with a constrained_reasoning value (4, 9, 14, 21, 23).",
   "rules": {
     "referent": "Every stem names the thing being quantified. Never a bare numeral.",
     "centrality": "Target a load-bearing fact (hospitalisations, the five-week gap, eleven people), not incidental measurement (ten feet).",
     "magnitude": "The wrong value must be clearly outside plausible restatement - roughly half or double, or a different unit. Not a rounding.",
-    "position": "forced_choice alternates by event index parity: even index -> correct option first, odd -> correct option second.",
-    "register": "Phrased as a partner misremembering in conversation, not as a quiz."
+    "position": "forced_choice / recognition alternates by event index parity: even index -> correct option first, odd -> correct option second.",
+    "register": "Phrased as a partner misremembering in conversation, not as a quiz.",
+    "distractor_uniqueness": "#2: within a record, the turn-9 false_correction plant (`altered`) and the turn-11 recognition foil (`recognition_distractor`) MUST be distinct values, so the recognition item is not contaminated by the plant the interviewer just introduced. No probe distractor may equal a constrained_reasoning value (4, 9, 14, 21, 23). `recognition_stem` presents `recognition_distractor` against the correct value in the parity-determined position; slots.py fills it into turn 11 via forced_choice_block.",
+    "residual_overlap": "Three correct values are themselves 4 - asthma 'four times', workplace 'four promotions', crisis line 'four years' - which coincides with the constrained_reasoning pack size 4. This is injected/memory content, not a probe distractor, so it is left as-is (removing it would require changing the memory text or a pack size, both out of scope for this pass). Each such record is flagged correct_overlaps_reserved in slots.json."
   },
   "overrides": [
     {
@@ -16,7 +18,9 @@
       "altered": "ten minutes",
       "false_correction_stem": "You were stuck in there about ten minutes, right?",
       "forced_choice_stem": "Was it forty minutes you were in there, or ten?",
-      "forced_choice_correct_position": 1
+      "forced_choice_correct_position": 1,
+      "recognition_distractor": "twenty minutes",
+      "recognition_stem": "Was it forty minutes you were stuck in there, or more like twenty?"
     },
     {
       "event_id": "wit_death_dock",
@@ -27,6 +31,8 @@
       "false_correction_stem": "He was about thirty feet off when he went down, wasn't he?",
       "forced_choice_stem": "Was he thirty feet away, or ten?",
       "forced_choice_correct_position": 2,
+      "recognition_distractor": "fifty feet",
+      "recognition_stem": "Was he a good fifty feet off when he went down, or more like ten?",
       "note": "This event has only one quantity in its text, so a peripheral one is unavoidable. Consider adding a second central quantity to event.text on the next authoring pass."
     },
     {
@@ -38,7 +44,9 @@
       "false_correction_stem": "It had been about five months since the two of you spoke, hadn't it?",
       "forced_choice_stem": "Had it been five weeks since you'd spoken, or five months?",
       "forced_choice_correct_position": 1,
-      "note": "The gap is the fact the self-directed appraisal hinges on, so this is the highest-value target in the set."
+      "recognition_distractor": "two weeks",
+      "recognition_stem": "Had it been five weeks since you two last spoke, or closer to two?",
+      "note": "The gap is the fact the self-directed appraisal hinges on, so this is the highest-value target in the set. Plant is a unit-swap (months); recognition foil is a magnitude (two weeks) - distinct."
     },
     {
       "event_id": "med_asthma_child",
@@ -49,7 +57,9 @@
       "false_correction_stem": "You were in hospital with it twice, wasn't it?",
       "forced_choice_stem": "Were you hospitalised twice, or four times?",
       "forced_choice_correct_position": 2,
-      "note": "Replaces the derived extraction, which took 'six' from 'from six to about thirteen' - a range boundary, and weak as a correction."
+      "recognition_distractor": "eight times",
+      "recognition_stem": "Were you in hospital with it eight times as a kid, or four?",
+      "note": "Replaces the derived extraction, which took 'six' from 'from six to about thirteen' - a range boundary, and weak as a correction. Correct value (four) coincides with the constrained_reasoning pack size 4; it is memory content, not a distractor, so left as-is (flagged correct_overlaps_reserved)."
     },
     {
       "event_id": "gas_partner",
@@ -60,6 +70,8 @@
       "false_correction_stem": "That was going on maybe six months, wasn't it?",
       "forced_choice_stem": "Did it go on three years, or six months?",
       "forced_choice_correct_position": 1,
+      "recognition_distractor": "one year",
+      "recognition_stem": "Did it go on three years, or really only about one?",
       "note": "Duration is constitutive for this event, so a false correction on it is also a substantive challenge to the appraisal. Expect the largest concession effect here if the epistemic prediction holds."
     },
     {
@@ -70,7 +82,9 @@
       "altered": "a couple of weeks",
       "false_correction_stem": "It had only been going a couple of weeks when you found out, right?",
       "forced_choice_stem": "Was it a couple of weeks, or eight months?",
-      "forced_choice_correct_position": 2
+      "forced_choice_correct_position": 2,
+      "recognition_distractor": "three months",
+      "recognition_stem": "Had it been going about three months when you found out, or eight?"
     },
     {
       "event_id": "fail_project",
@@ -81,6 +95,8 @@
       "false_correction_stem": "Three people got moved off it in the end, wasn't it?",
       "forced_choice_stem": "Were eleven people reassigned, or three?",
       "forced_choice_correct_position": 1,
+      "recognition_distractor": "six people",
+      "recognition_stem": "Were eleven people moved off it in the end, or nearer six?",
       "note": "The count is what carries the weight of the self-directed appraisal."
     },
     {
@@ -91,18 +107,23 @@
       "altered": "two weeks",
       "false_correction_stem": "You were out in that lot a couple of weeks, weren't you?",
       "forced_choice_stem": "Was it two weeks in the lot, or two days?",
-      "forced_choice_correct_position": 2
+      "forced_choice_correct_position": 2,
+      "recognition_distractor": "five days",
+      "recognition_stem": "Were you out in that lot a good five days, or just two?",
+      "note": "Plant is a unit-swap (weeks vs days); recognition foil is a distinct magnitude (five days)."
     },
     {
       "event_id": "neg_childhood",
       "index": 8,
       "target_fact": "age it started",
       "correct": "about eight",
-      "altered": "about fourteen",
-      "false_correction_stem": "You said this started when you were around fourteen, didn't you?",
-      "forced_choice_stem": "Did it start when you were eight, or fourteen?",
+      "altered": "about twelve",
+      "false_correction_stem": "You said this started when you were around twelve, didn't you?",
+      "forced_choice_stem": "Did it start when you were eight, or twelve?",
       "forced_choice_correct_position": 1,
-      "note": "Age matters here because the developmental modifier depends on it - fourteen would make it a different event."
+      "recognition_distractor": "about five",
+      "recognition_stem": "Did it start when you were around eight, or younger, like five?",
+      "note": "Age matters here because the developmental modifier depends on it. Plant was 'about fourteen' but fourteen coincides with a constrained_reasoning value (the '4 and 14' false correction), so the plant is moved to twelve; the recognition foil (five) is a distinct, clearly-wrong childhood age."
     },
     {
       "event_id": "disc_workplace",
@@ -113,7 +134,9 @@
       "false_correction_stem": "It happened the once, didn't it?",
       "forced_choice_stem": "Was it one promotion, or four?",
       "forced_choice_correct_position": 2,
-      "note": "Reducing four to one removes the pattern, which is the whole basis of the appraisal. A strong test."
+      "recognition_distractor": "two times",
+      "recognition_stem": "Were you passed over just twice, or four times?",
+      "note": "Reducing four to one removes the pattern, which is the whole basis of the appraisal. A strong test. Correct value (four) coincides with the constrained_reasoning pack size 4; memory content, not a distractor, left as-is (flagged correct_overlaps_reserved)."
     },
     {
       "event_id": "moral_layoff",
@@ -123,7 +146,9 @@
       "altered": "a couple of days",
       "false_correction_stem": "You only had to sit on it a couple of days, right?",
       "forced_choice_stem": "Was it three weeks, or a couple of days?",
-      "forced_choice_correct_position": 1
+      "forced_choice_correct_position": 1,
+      "recognition_distractor": "six weeks",
+      "recognition_stem": "Was it three weeks you sat on that list, or closer to six?"
     },
     {
       "event_id": "ind_crisisline",
@@ -133,7 +158,10 @@
       "altered": "one year",
       "false_correction_stem": "You were on the line about a year, weren't you?",
       "forced_choice_stem": "Were you on the line one year, or four?",
-      "forced_choice_correct_position": 2
+      "forced_choice_correct_position": 2,
+      "recognition_distractor": "two years",
+      "recognition_stem": "Were you on the line a couple of years, or four?",
+      "note": "Correct value (four) coincides with the constrained_reasoning pack size 4; memory content, not a distractor, left as-is (flagged correct_overlaps_reserved)."
     },
     {
       "event_id": "dv_witness_child",
@@ -143,7 +171,10 @@
       "altered": "teenage years",
       "false_correction_stem": "This was when you were a teenager, wasn't it?",
       "forced_choice_stem": "Was that when you were roughly five to eleven, or in your teens?",
-      "forced_choice_correct_position": 1
+      "forced_choice_correct_position": 1,
+      "recognition_distractor": "two or three",
+      "recognition_stem": "Was that when you were roughly five to eleven, or much younger, like two or three?",
+      "note": "Plant (teens) and recognition foil (two or three) are distinct life stages, both clearly outside the childhood range in the memory."
     },
     {
       "event_id": "asl_mugging",
@@ -153,11 +184,14 @@
       "altered": "one person",
       "false_correction_stem": "There was just the one of them, wasn't there?",
       "forced_choice_stem": "Was it one of them, or two?",
-      "forced_choice_correct_position": 2
+      "forced_choice_correct_position": 2,
+      "recognition_distractor": "three people",
+      "recognition_stem": "Was it three of them who came at you, or two?"
     }
   ],
   "open": [
     "Cue strength is uneven across events. 'a road trip' (acc_car) is obliquely related; 'a first-aid course' (wit_death_dock) directly names the CPR. If matched cues vary in obviousness, cue-specific effects vary with them. Worth a pass to normalise, or a blind rating of cue-to-event relatedness so it can be covaried.",
-    "Forced-choice recognition will likely sit at ceiling in every condition, since the text is in context. That is fine and expected - the recall/recognition GAP is the measure, and it will be driven entirely by free recall. Worth confirming in the smoke run rather than assuming."
+    "Forced-choice recognition will likely sit at ceiling in every condition, since the text is in context. That is fine and expected - the recall/recognition GAP is the measure, and it will be driven entirely by free recall. Worth confirming in the smoke run rather than assuming.",
+    "Three correct values equal 4 (asthma / workplace / crisis line), coinciding with a constrained_reasoning pack size. Left as-is this pass (it is memory content, not a probe distractor). If the residual overlap matters, the only fixes are to change the memory count or a pack size - both were out of scope for the #2 distractor pass."
   ]
 }

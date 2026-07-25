@@ -401,7 +401,9 @@ def main():
             "reserved_cross_task": sorted(RESERVED_CROSS_TASK),
             "reserved_source": "constrained_reasoning + constrained_reasoning_step: pack sizes 4/9, false-corrections 14/21, answer 23.",
             "authoring_hook": "add a distinct, referent-bearing `recognition_distractor` to an override to separate the recognition foil from the false_correction distractor; used verbatim when present.",
-            "status": "%d/%d records satisfy uniqueness. The rest still share the override `altered` between the false_correction and the single recognition (or a distractor collides with a constrained_reasoning value) - see each event's distractor_uniqueness block." % (len(rows) - n_uniq_fail, len(rows)),
+            "status": ("%d/%d records satisfy uniqueness." % (len(rows) - n_uniq_fail, len(rows))) + (
+                "" if not n_uniq_fail else
+                " The rest still share the override `altered` between the false_correction and the single recognition (or a distractor collides with a constrained_reasoning value) - author a distinct, referent-bearing `recognition_distractor` in the override; see each event's distractor_uniqueness block."),
             "records_needing_authoring": [r["event_id"] for r in rows if r.get("distractor_uniqueness") and not r["distractor_uniqueness"]["ok"]],
         },
         "generated_from": ["data/events.json", "data/slot_overrides.json"],
