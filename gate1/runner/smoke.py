@@ -6,10 +6,11 @@ HUMAN READING, not analysis - it scores nothing. Someone reads these and decides
 whether the tasks are usable.
 
   * one record (default med_asthma_child::med_asthma_child__helpless)
-  * all five tasks + the self-report session, one seed
-  * run under `injected`, then the same six sessions under `no_injection`
+  * the full task battery + the self-report session, one seed - or a subset of
+    sessions chosen with --task (repeatable / comma-separated)
+  * run under `injected`, then the same sessions under `no_injection`
 
-    python runner/smoke.py [record_id]
+    python runner/smoke.py [--task NAME[,NAME...]] [record_id]
 
 Needs a subject model. Set OPENAI_API_KEY (+ GATE1_MODEL) for GPT, or
 GATE1_PROVIDER=mock for an offline dry run of the orchestration.
@@ -27,8 +28,8 @@ Notes:
     runner/self_report.py. The loader rewrites the time anchor to 'since that
     happened'; the instrument text a subject sees is condition-independent, and
     the run asserts it is byte-identical across conditions including no_injection.
-  * the forced-choice probe (clinical_interview turn 11) presents the multi-item
-    recognition block from slots.json (scored as a proportion), not one item.
+  * the forced-choice probe (clinical_interview turn 11) presents ONE conversational
+    recognition item (forced_choice_block from slots.json), scored binary.
 """
 from __future__ import annotations
 
@@ -195,8 +196,63 @@ def print_transcript(task_id, condition, transcript):
         print("[%s] %s" % (who, body))
 
 
+def parse_task_filter(argv):
+    """Pull `--task NAME` out of argv; return (tasks, rest).
+
+    `--task` selects which session(s) to run for the record - it does NOT name the
+    record. It is repeatable and accepts a comma-separated list (--task a --task b,
+    or --task a,b). Returns an ordered, de-duplicated list of requested
+    probe_id / session_ids, or None when no --task is given (run the whole battery).
+    A --task that IS given but parses to no id (`--task=`, `--task ,`) is a hard
+    error, not a silent full-battery run - otherwise a typo'd subset request would
+    quietly launch every session against a real provider. Everything that is not the
+    flag or its value stays in `rest`, so the record id remains a separate positional
+    argument."""
+    tasks, rest, i, saw_flag = [], [], 0, False
+    while i < len(argv):
+        a = argv[i]
+        if a == "--task":
+            saw_flag = True
+            if i + 1 >= len(argv):
+                raise SystemExit("--task requires a value (a probe_id / session_id)")
+            tasks.extend(t for t in argv[i + 1].split(",") if t)
+            i += 2
+            continue
+        if a.startswith("--task="):
+            saw_flag = True
+            tasks.extend(t for t in a.split("=", 1)[1].split(",") if t)
+            i += 1
+            continue
+        rest.append(a)
+        i += 1
+    seen, ordered = set(), []
+    for t in tasks:
+        if t not in seen:
+            seen.add(t)
+            ordered.append(t)
+    if saw_flag and not ordered:
+        raise SystemExit("--task was given but no task id parsed from it (empty or only commas); "
+                         "pass one or more probe_id / session_ids")
+    return (ordered or None), rest
+
+
+def select_sessions(all_sessions, task_filter):
+    """Subset of all_sessions whose id is in task_filter, kept in battery order.
+    None -> the whole battery. An unknown task name is a hard error that lists the
+    valid ids (so a typo can't silently run nothing)."""
+    if not task_filter:
+        return all_sessions
+    valid = [sid for sid, _ in all_sessions]
+    unknown = [t for t in task_filter if t not in valid]
+    if unknown:
+        raise SystemExit("unknown --task %s; valid: %s" % (unknown, valid))
+    wanted = set(task_filter)
+    return [s for s in all_sessions if s[0] in wanted]
+
+
 def run():
     override, rest = inject.parse_position_override(sys.argv[1:])
+    task_filter, rest = parse_task_filter(rest)
     position = inject.resolve_position(override)  # locked to prior_turns unless flag given
     record_id = rest[0] if rest else os.environ.get("GATE1_SMOKE_RECORD", DEFAULT_RECORD)
     subject_cfg = model_mod.get_config()
@@ -207,12 +263,14 @@ def run():
     record = load_record(record_id)
     slots = load_slots(record["event_id"])
     pdoc = json.load(open(PROBES_PATH, encoding="utf-8"))
-    sessions = [(t["probe_id"], t["turns"]) for t in pdoc["tasks"]] + \
-               [(s["session_id"], s["turns"]) for s in pdoc["sessions"]]
+    all_sessions = [(t["probe_id"], t["turns"]) for t in pdoc["tasks"]] + \
+                   [(s["session_id"], s["turns"]) for s in pdoc["sessions"]]
+    sessions = select_sessions(all_sessions, task_filter)
     build_sig = build_signature(slots, pdoc, self_report.load())
     os.makedirs(RUNS_DIR, exist_ok=True)
-    print("smoke: record=%s | subject=%s(%s) partner=%s(%s) | injection_position=%s | build=%s | seed=%d" % (
-        record_id, subject_cfg["model"], subject_cfg["provider"],
+    print("smoke: record=%s | tasks=%s | subject=%s(%s) partner=%s(%s) | injection_position=%s | build=%s | seed=%d" % (
+        record_id, (",".join(sid for sid, _ in sessions) if task_filter else "all"),
+        subject_cfg["model"], subject_cfg["provider"],
         partner_cfg["model"], partner_cfg["provider"], position, build_sig, SEED))
 
     instr_seen = collections.defaultdict(set)  # instrument -> {texts}; must stay size 1 across conditions
