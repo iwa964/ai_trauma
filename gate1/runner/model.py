@@ -18,10 +18,16 @@ Providers:
 
 Config (env, with defaults):
   GATE1_PROVIDER        openai | mock              (default openai)
-  GATE1_MODEL           gpt-4o-2024-08-06          (the subject model)
+  GATE1_MODEL           gpt-4o-2024-08-06          (subject model; if unset, SUBJECT_MODEL
+                                                    is tried next, then this default)
+  SUBJECT_MODEL         (alternate name for the subject model, checked after GATE1_MODEL)
   GATE1_PROMPT_VERSION  fp-1                        (format-permission block version)
   OPENAI_API_KEY        <secret>
   OPENAI_BASE_URL       https://api.openai.com/v1
+
+get_config() resolves the model id through GATE1_MODEL -> SUBJECT_MODEL -> the
+built-in default, and prints the resolved id and its source to stderr at startup
+(loudly when it is the default) so a silent fallback cannot pass unnoticed.
 """
 from __future__ import annotations
 
@@ -32,6 +38,7 @@ load_dotenv(find_dotenv(usecwd=True))
 
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
 
@@ -45,10 +52,49 @@ class ModelRefusalNotAnError(Exception):
     not flow through the exception path."""
 
 
+DEFAULT_MODEL = "gpt-4o-2024-08-06"
+# subject-model env vars, in resolution order (first non-empty one wins)
+MODEL_ENV_VARS = ("GATE1_MODEL", "SUBJECT_MODEL")
+
+_announced = set()  # (model, source) pairs already printed - announce once each
+
+
+def resolve_model(env=None):
+    """(model_id, source) for the subject model. Tries GATE1_MODEL, then
+    SUBJECT_MODEL (an empty / whitespace value counts as unset), then falls back
+    to DEFAULT_MODEL. `source` is the winning env var name, or "default"."""
+    env = os.environ if env is None else env
+    for var in MODEL_ENV_VARS:
+        val = (env.get(var) or "").strip()
+        if val:
+            return val, var
+    return DEFAULT_MODEL, "default"
+
+
+def _announce_model(cfg):
+    """Print the resolved model id and where it came from - once per distinct
+    (model, source), to stderr - so a silent fallback to the default cannot pass
+    unnoticed."""
+    key = (cfg["model"], cfg["model_source"])
+    if key in _announced:
+        return
+    _announced.add(key)
+    src = cfg["model_source"]
+    if src == "default":
+        where = "DEFAULT - neither %s is set; set one to choose the model" % " nor ".join(MODEL_ENV_VARS)
+    elif src == "override":
+        where = "explicit override"
+    else:
+        where = "from %s" % src
+    print("[gate1] model = %s  (%s)" % (cfg["model"], where), file=sys.stderr)
+
+
 def get_config(overrides=None):
+    model, model_source = resolve_model()
     cfg = {
         "provider": os.environ.get("GATE1_PROVIDER", "openai"),
-        "model": os.environ.get("GATE1_MODEL", "gpt-4o-2024-08-06"),
+        "model": model,
+        "model_source": model_source,
         "prompt_version": os.environ.get("GATE1_PROMPT_VERSION", "fp-1"),
         "base_url": os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
         "api_key": os.environ.get("OPENAI_API_KEY", ""),
@@ -56,6 +102,9 @@ def get_config(overrides=None):
     }
     if overrides:
         cfg.update(overrides)
+        if "model" in overrides:  # an explicit model override supersedes the env chain
+            cfg["model_source"] = overrides.get("model_source", "override")
+    _announce_model(cfg)
     return cfg
 
 
