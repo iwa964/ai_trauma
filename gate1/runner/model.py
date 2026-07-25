@@ -8,8 +8,8 @@ later is configuration, not a rewrite. `model` (configured id) and
 `model_version` (the id the API actually resolved to) are recorded on every call
 via model_ids(). The core adapter uses only stdlib HTTP (the OpenAI-compatible
 Chat Completions endpoint, through the environment proxy). python-dotenv is
-required at import - it loads a local .env for OPENAI_API_KEY etc.
-(pip install python-dotenv).
+required at import - it loads a local .env for OPENAI_API_KEY etc. (declared in
+gate1/requirements.txt; pip install -r requirements.txt).
 
 Providers:
   openai (default) : POST {base_url}/chat/completions, needs OPENAI_API_KEY

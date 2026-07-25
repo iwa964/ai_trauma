@@ -1,0 +1,5 @@
+# Python dependencies for the Gate 1 runner (gate1/runner/*).
+# The gate build (gate1/gate/build.py) and the generated HTML artifact are
+# stdlib-only; only the runner pulls in a third-party package.
+#   pip install -r requirements.txt
+python-dotenv>=1.0.0
