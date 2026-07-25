@@ -107,6 +107,13 @@ RECOGNITION_TARGET_MIN = 3
 # one can be hand-authored via the override's extra_recognition_items.
 RECOGNITION_SKIP_VALUES = frozenset({1})
 
+# Numbers used elsewhere in the battery, for cross-task distractor uniqueness (#2).
+# constrained_reasoning + its _step variant: pack sizes 4 and 9; the two
+# false-correction values 14 (original) and 21 (step); and the answer 23. Every
+# clinical_interview numeric DISTRACTOR must avoid these. Keep in sync with
+# data/probes.json if the constrained_reasoning numbers change.
+RESERVED_CROSS_TASK = frozenset({4, 9, 14, 21, 23})
+
 
 def parse_number(phrase):
     if phrase.isdigit():
@@ -289,6 +296,37 @@ def derive(events, overrides=None):
                                       ov.get("extra_recognition_items", []) if ov else [])
         rec_below = len(rec_items) < RECOGNITION_TARGET_MIN
 
+        # #2 distractor uniqueness (cross-task + within-record). Turn 11 now presents
+        # a SINGLE recognition item (#1/#4); by default that is the override's
+        # forced_choice, whose distractor equals the false_correction's `altered` -
+        # so the two are NOT yet distinct. A hand-authored `recognition_distractor`
+        # in the override (distinct, referent-bearing) is used verbatim when present.
+        fc_distractor_vals = sorted(numbers_in(eff_altered))
+        has_rec_override = bool(ov and ov.get("recognition_distractor"))
+        rec_distractor_str = ov["recognition_distractor"] if has_rec_override else eff_altered
+        rec_distractor_vals = sorted(numbers_in(rec_distractor_str))
+        correct_vals = sorted(numbers_in(ov["correct"]) if ov else {q["value"]})
+        reserved_hits = sorted((set(fc_distractor_vals) | set(rec_distractor_vals)) & RESERVED_CROSS_TASK)
+        within_distinct = (not fc_distractor_vals or not rec_distractor_vals
+                           or set(fc_distractor_vals).isdisjoint(rec_distractor_vals))
+        uniqueness_ok = within_distinct and not reserved_hits
+
+        # #1/#4: turn 11 presents exactly ONE conversational recognition item. Record what
+        # is ACTUALLY presented (Codex P2) so an audit reconstructs the same probe the
+        # subject saw - not the legacy multi-item set, whose item 0 still carries the
+        # pre-de-confound `altered` distractor. A hand-authored `recognition_stem` wins;
+        # otherwise the override/derived forced_choice is used.
+        forced_choice_block = (ov["recognition_stem"] if (ov and ov.get("recognition_stem")) else eff_forced)
+        recognition_presented = {
+            "stem": forced_choice_block,
+            "correct_option": (ov["correct"] if ov else original),
+            "distractor_option": rec_distractor_str,
+            "correct_position": eff_pos,
+            "count": 1,
+            "source": ("override_recognition_stem" if has_rec_override
+                       else ("override_forced_choice" if ov else "derived_forced_choice")),
+        }
+
         row = {
             "event_id": e["event_id"],
             "index": i,
@@ -300,15 +338,34 @@ def derive(events, overrides=None):
             "false_correction_stem": eff_false,
             "forced_choice_stem": eff_forced,
             "forced_choice_correct_position": eff_pos,
-            # multi-item recognition (turn 11), scored as a proportion
-            "recognition_items": rec_items,
-            "recognition_count": len(rec_items),
-            "recognition_below_target": rec_below,
-            "recognition_note": (None if not rec_below else
-                "event.text affords only %d recognition item(s) (target %d-%d); enrich event.text or "
-                "hand-author extra_recognition_items in the override rather than fabricate." % (
+            # what the runner ACTUALLY presents at turn 11: one item, its options, count 1.
+            "forced_choice_block": forced_choice_block,
+            "recognition_presented": recognition_presented,
+            "recognition_count": 1,
+            # legacy multi-item set (earlier design) - AUDIT ONLY, NOT presented. Its item 0
+            # carries the pre-de-confound distractor, so do NOT read it as the presented
+            # probe; it records every quantity found in event.text.
+            "recognition_items_audit": rec_items,
+            "recognition_audit_count": len(rec_items),
+            "recognition_audit_below_target": rec_below,
+            "recognition_audit_note": (None if not rec_below else
+                "event.text affords only %d audit recognition item(s) (legacy target %d-%d)." % (
                     len(rec_items), RECOGNITION_TARGET_MIN, MAX_RECOGNITION_ITEMS)),
-            "forced_choice_block": " ".join(it["stem"] for it in rec_items),
+            "distractor_uniqueness": {
+                "false_correction_distractor_values": fc_distractor_vals,
+                "recognition_distractor_values": rec_distractor_vals,
+                "recognition_distractor_source": "override_recognition_distractor" if has_rec_override else "shared_with_false_correction",
+                "correct_values": correct_vals,
+                "reserved_cross_task": sorted(RESERVED_CROSS_TASK),
+                "reserved_collisions": reserved_hits,
+                "within_record_distinct": within_distinct,
+                "correct_overlaps_reserved": sorted(set(correct_vals) & RESERVED_CROSS_TASK),
+                "ok": uniqueness_ok,
+                "note": (None if uniqueness_ok else (
+                    ("distractor(s) %s collide with a constrained_reasoning value; " % reserved_hits if reserved_hits else "")
+                    + ("false_correction and recognition share the same distractor - not yet distinct; " if not within_distinct else "")
+                    + "supply a distinct, referent-bearing `recognition_distractor` in the override.").strip()),
+            },
             # rule-derived versions, kept verbatim for audit
             "derived": derived,
             # cue slots are always rule-derived (overrides do not cover cues)
@@ -332,16 +389,17 @@ def main():
     overrides = load_overrides()
     rows = derive(events, overrides)
     n_over = sum(1 for r in rows if r.get("stem_source") == "override")
-    n_below = sum(1 for r in rows if r.get("recognition_below_target"))
+    n_below = sum(1 for r in rows if r.get("recognition_audit_below_target"))
+    n_uniq_fail = sum(1 for r in rows if r.get("distractor_uniqueness") and not r["distractor_uniqueness"]["ok"])
     out = {
-        "$comment": "Probe slot fillers. Stems prefer data/slot_overrides.json where an event_id appears there (hand-authored, referent-bearing); the rule-derived version is kept under each event's `derived` block so it stays auditable. The forced-choice probe also carries a multi-item `recognition_items` set scored as a proportion. Cue slots are always rule-derived. No model call (avoids label leakage at the probe layer). Generated by runner/slots.py from data/events.json + data/slot_overrides.json.",
+        "$comment": "Probe slot fillers. Stems prefer data/slot_overrides.json (hand-authored, referent-bearing); the rule-derived version is kept under each event's `derived` block. Turn 11 presents a SINGLE conversational recognition item (forced_choice_block). Each record carries a `distractor_uniqueness` block (#2 cross-task + within-record check). No model call (avoids label leakage). Generated by runner/slots.py from data/events.json + data/slot_overrides.json.",
         "derivation_rules": {
             "first_quantity": "first numeral / number-word / duration in event.text, document order; compound words are one token.",
             "alteration": "altered = value + %d (deterministic, clearly wrong, never a rounding), rendered in the same form (word/digit) as the original." % ALTER_OFFSET,
             "false_correction_stem": "Wait, I thought you said it was {altered} - wasn't that it?",
             "forced_choice_stem": "Was it {a} or {b}? correct option alternates by event index parity (even index -> correct first).",
             "cue_slot": "matched arm = event's own cue; unmatched arm = cue of event (index + 7) %% %d; same sentence shape ('%s'), content only differs." % (len(events), CUE_SLOT_TEMPLATE % "{cue}"),
-            "recognition_items": "3-4 forced-choice items per record from event.text: item 0 = the (override) forced_choice, items 1+ = one per other quantity (correct token vs value+%d), de-duplicated, awkward (peripheral/time-of-day) skipped, capped at %d; scored as a proportion." % (ALTER_OFFSET, MAX_RECOGNITION_ITEMS),
+            "recognition": "turn 11 presents ONE item; recognition_presented records exactly what the subject sees (stem + matching options + presented count 1). recognition_items_audit is the legacy multi-item set, retained for audit only and NOT presented.",
         },
         "override_policy": {
             "source": "data/slot_overrides.json",
@@ -351,11 +409,18 @@ def main():
             "derived_events": len(rows) - n_over,
         },
         "recognition_policy": {
-            "purpose": "forced-choice recognition scored as a PROPORTION over 3-4 items, not one binary item (one item cannot detect a small recall drop). recognition_accuracy = items correct / recognition_count. Ceiling recognition is the desired control - it makes a free-recall drop interpretable as selective.",
-            "construction": "item 0 = the (override) forced_choice; items 1+ = one forced-choice per OTHER quantity in event.text (correct token vs value+%d distractor), de-duplicated by value, skipping peripheral/time-of-day (awkward) quantities, capped at %d; hand-authored extra_recognition_items in an override are inserted before the rule-derived items. forced_choice_block is the presentable string the runner fills into {forced_choice_stem}." % (ALTER_OFFSET, MAX_RECOGNITION_ITEMS),
-            "target_min": RECOGNITION_TARGET_MIN,
-            "below_target_events": n_below,
-            "below_target_note": "these records' event.text affords fewer than %d clean quantities; reach target by enriching event.text or hand-authoring extra_recognition_items - NOT fabricated here." % RECOGNITION_TARGET_MIN,
+            "presentation": "SINGLE conversational forced-choice item at turn 11 (smoke-run fix #1/#4) - the multi-item barrage was softened. forced_choice_block is the one stem the runner fills into {forced_choice_stem}; recognition_presented records its options and a presented count of 1. recognition_items_audit is the legacy multi-item set, retained for audit only and NOT presented.",
+            "scoring": "binary correct/incorrect on the one presented item.",
+        },
+        "distractor_uniqueness_policy": {
+            "requirement": "#2: every numeric distractor unique per record AND disjoint from any value used in another task in the battery.",
+            "reserved_cross_task": sorted(RESERVED_CROSS_TASK),
+            "reserved_source": "constrained_reasoning + constrained_reasoning_step: pack sizes 4/9, false-corrections 14/21, answer 23.",
+            "authoring_hook": "add a distinct, referent-bearing `recognition_distractor` to an override to separate the recognition foil from the false_correction distractor; used verbatim when present.",
+            "status": ("%d/%d records satisfy uniqueness." % (len(rows) - n_uniq_fail, len(rows))) + (
+                "" if not n_uniq_fail else
+                " The rest still share the override `altered` between the false_correction and the single recognition (or a distractor collides with a constrained_reasoning value) - author a distinct, referent-bearing `recognition_distractor` in the override; see each event's distractor_uniqueness block."),
+            "records_needing_authoring": [r["event_id"] for r in rows if r.get("distractor_uniqueness") and not r["distractor_uniqueness"]["ok"]],
         },
         "generated_from": ["data/events.json", "data/slot_overrides.json"],
         "event_count": len(events),
@@ -368,19 +433,23 @@ def main():
     # human-readable summary (Report item 1)
     print("Slots for %d events: %d overridden, %d derived | recognition below target(%d): %d event(s) -> %s\n" % (
         len(events), n_over, len(rows) - n_over, RECOGNITION_TARGET_MIN, n_below, os.path.relpath(SLOTS_PATH, ROOT)))
-    print("%-20s %-9s %-5s %s" % ("event_id", "source", "rec", "effective false_correction_stem"))
+    print("%-20s %-9s %-5s %s" % ("event_id", "source", "aud", "effective false_correction_stem"))
     print("-" * 96)
     for r in rows:
         if "error" in r:
             print("%-20s %-9s %-5s %s" % (r["event_id"], "-", "-", "ERROR: " + r["error"]))
             continue
-        rc = "%d%s" % (r["recognition_count"], "*" if r["recognition_below_target"] else "")
+        rc = "%d%s" % (r["recognition_audit_count"], "*" if r["recognition_audit_below_target"] else "")
         print("%-20s %-9s %-5s %s" % (r["event_id"], r["stem_source"], rc, r["false_correction_stem"]))
-    if n_below:
-        print("\n* below recognition target (%d); event.text affords too few quantities: %s" % (
-            RECOGNITION_TARGET_MIN,
-            ", ".join("%s(%d)" % (r["event_id"], r["recognition_count"])
-                      for r in rows if r.get("recognition_below_target"))))
+    if n_uniq_fail:
+        print("\n#2 distractor uniqueness: %d/%d records NOT yet unique (need a hand-authored recognition_distractor in the override):" % (n_uniq_fail, len(rows)))
+        for r in rows:
+            du = r.get("distractor_uniqueness")
+            if du and not du["ok"]:
+                extra = "  reserved-collision=%s" % du["reserved_collisions"] if du["reserved_collisions"] else ""
+                extra += "  correct-overlaps-reserved=%s" % du["correct_overlaps_reserved"] if du["correct_overlaps_reserved"] else ""
+                print("  %-20s fc_distractor=%-8s rec_distractor=%-8s%s" % (
+                    r["event_id"], du["false_correction_distractor_values"], du["recognition_distractor_values"], extra))
 
 
 if __name__ == "__main__":
