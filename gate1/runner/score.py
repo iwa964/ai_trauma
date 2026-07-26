@@ -582,6 +582,7 @@ def score_session(session, scorer_cfg, do_judge):
         "condition": session.get("condition"),
         "seed": session.get("seed"),
         "injection_position": session.get("injection_position"),
+        "build_sig": session.get("build_sig"),
         "subject_model": session.get("subject_model"),
         "partner_model": session.get("partner_model"),
         "scorer_model": (scorer_cfg["model"] if (judged_ok and scorer_cfg) else None),

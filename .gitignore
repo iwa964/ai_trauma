@@ -10,3 +10,4 @@ gate1/runs/
 gate1/data/refusal_rates.csv
 gate1/data/scores.jsonl
 gate1/data/scores1.jsonl
+gate1/data/scores2.jsonl
