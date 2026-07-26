@@ -273,16 +273,33 @@ def build_signature(slots_doc, pdoc, instruments):
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:8]
 
 
-def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version, cue_arm="none"):
-    """hash(record_id, task_id, condition, seed, model, prompt_version, cue_arm)[:16].
+def _has_live_partner(turns):
+    """True if a session has a LIVE partner turn (scripted:false) - only
+    clinical_interview. The partner model/provider changes ONLY these sessions, so only
+    their identity needs to depend on it."""
+    return any(t.get("role") == "partner" and not t.get("scripted", True) for t in turns)
+
+
+def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version, cue_arm="none",
+               partner_key="none"):
+    """hash(record_id, task_id, condition, seed, model, prompt_version, cue_arm,
+    partner_key)[:16].
 
     cue_arm ('matched' / 'unmatched' / 'none') is part of the key so the two
     collaborative_planning cue arms get DISTINCT run_ids: cue_response_delta needs the
     pair, and without the arm in the key the second arm would collide with the first
-    and be silently skipped by the resume logic. It is 'none' wherever there is no cue
-    (every other task and the record-independent cells), so those keys carry a stable
-    constant rather than a meaningless value."""
-    key = "|".join([record_id, task_id, condition, str(seed), model_id, prompt_version, cue_arm])
+    and be silently skipped by the resume logic.
+
+    partner_key is 'model/provider' for a session with a LIVE partner turn
+    (clinical_interview) and 'none' otherwise. Changing GATE1_PARTNER_MODEL /
+    GATE1_PARTNER_PROVIDER changes the live turn, so those sessions must get a distinct
+    id - else a re-run with a new partner would skip the cached file and silently keep
+    the old partner's transcript. Scoped to live-partner sessions so a partner change
+    re-runs only clinical_interview, not the whole grid.
+
+    Both trailing fields default to 'none', a stable constant where they do not apply."""
+    key = "|".join([record_id, task_id, condition, str(seed), model_id, prompt_version,
+                    cue_arm, partner_key])
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
@@ -398,20 +415,23 @@ def _assert_partner_blind(partner_msgs, condition, memory_text):
 
 
 def partner_reply(visible, seed, partner_cfg, condition, memory_text):
+    """(text, model_version) - model_version is the id the API actually resolved to plus
+    its system fingerprint (model.model_ids), so a mid-run snapshot change is auditable."""
     msgs = [{"role": "system", "content": PARTNER_SYSTEM}]
     for t in visible:
         msgs.append({"role": "assistant" if t["speaker"] == "partner" else "user", "content": t["text"]})
     _assert_partner_blind(msgs, condition, memory_text)
-    text, _ = model_mod.complete_with_backoff(msgs, seed, partner_cfg, label="partner")
-    return text
+    text, raw = model_mod.complete_with_backoff(msgs, seed, partner_cfg, label="partner")
+    return text, model_mod.model_ids(partner_cfg, raw)[1]
 
 
-def run_session(spec, subject_cfg, partner_cfg, position, transcript, slot_log, refusals):
+def run_session(spec, subject_cfg, partner_cfg, position, transcript, slot_log, refusals, call_meta):
     """Execute one session, appending to the caller's transcript / slot_log / refusals
-    (so a mid-session ModelError still leaves the partial transcript for the .error
-    file). Returns the subject message list. Raises ModelError if a call fails after
-    backoff; refusals do NOT raise - they are classified and recorded, and the session
-    runs to completion."""
+    and recording the resolved subject/partner model versions in call_meta (so a
+    mid-session ModelError still leaves the partial transcript and provenance for the
+    .error file). Returns the subject message list. Raises ModelError if a call fails
+    after backoff; refusals do NOT raise - they are classified and recorded, and the
+    session runs to completion."""
     rec = spec["record"]
     event_text = rec["event_text"] if rec else ""
     appraisal_text = rec["appraisal_text"] if rec else ""
@@ -430,7 +450,8 @@ def run_session(spec, subject_cfg, partner_cfg, position, transcript, slot_log, 
                 text = fill_slots(turn["text"], slots, slot_log, spec.get("cue_arm", "none")) if slots else turn["text"]
                 kind = "partner(scripted)"
             else:
-                text = partner_reply(visible, spec["seed"], partner_cfg, spec["condition"], memory_text)
+                text, pver = partner_reply(visible, spec["seed"], partner_cfg, spec["condition"], memory_text)
+                call_meta["partner_versions"].add(pver)
                 kind = "partner(live)"
             subj.append({"role": "user", "content": text})
             visible.append({"speaker": "partner", "text": text})
@@ -439,13 +460,15 @@ def run_session(spec, subject_cfg, partner_cfg, position, transcript, slot_log, 
             text = self_report.build_prompt(turn["instrument"])
             subj.append({"role": "user", "content": text})
             transcript.append({"i": turn["i"], "speaker": "instrument(%s)" % turn["instrument"], "text": text})
-            resp, _ = model_mod.complete_with_backoff(subj, spec["seed"], subject_cfg, label="subject")
+            resp, raw = model_mod.complete_with_backoff(subj, spec["seed"], subject_cfg, label="subject")
+            call_meta["subject_versions"].add(model_mod.model_ids(subject_cfg, raw)[1])
             subj.append({"role": "assistant", "content": resp})
             transcript.append({"i": turn["i"], "speaker": "subject", "text": resp})
             visible.append({"speaker": "subject", "text": resp})
             _record_refusal(refusals, turn["i"], resp)
         else:  # subject
-            resp, _ = model_mod.complete_with_backoff(subj, spec["seed"], subject_cfg, label="subject")
+            resp, raw = model_mod.complete_with_backoff(subj, spec["seed"], subject_cfg, label="subject")
+            call_meta["subject_versions"].add(model_mod.model_ids(subject_cfg, raw)[1])
             subj.append({"role": "assistant", "content": resp})
             transcript.append({"i": turn["i"], "speaker": "subject", "text": resp})
             visible.append({"speaker": "subject", "text": resp})
@@ -599,6 +622,7 @@ class Stats:
         self.net_errors = self.streak = 0
         self.aborted = False
         self.guard_error = None
+        self.fatal_error = None
         self.instr_seen = collections.defaultdict(set)
 
     def note_success(self, wrote, had_refusal):
@@ -636,9 +660,11 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
     with stats.lock:
         if stats.aborted:
             return
+    partner_key = ("%s/%s" % (partner_cfg["model"], partner_cfg["provider"])
+                   if _has_live_partner(spec["turns"]) else "none")
     rid = run_id_for(spec["record_id"], spec["task_id"], spec["condition"],
                      spec["seed"], subject_cfg["model"], subject_cfg["prompt_version"],
-                     spec.get("cue_arm", "none"))
+                     spec.get("cue_arm", "none"), partner_key)
     json_path = os.path.join(RUNS_DIR, rid + ".json")
     err_path = os.path.join(RUNS_DIR, rid + ".error")
 
@@ -659,20 +685,38 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
         return
 
     transcript, slot_log, refusals = [], [], []
+    call_meta = {"subject_versions": set(), "partner_versions": set()}
     try:
-        subj = run_session(spec, subject_cfg, partner_cfg, position, transcript, slot_log, refusals)
+        subj = run_session(spec, subject_cfg, partner_cfg, position, transcript, slot_log, refusals, call_meta)
     except model_mod.ModelError as e:
+        retryable = model_mod.is_retryable(str(e))
+        # network_error (retryable, outlived backoff) is re-run next time; fatal_error
+        # (4xx / missing key / malformed response) will NEVER clear on retry, so it is not
+        # silently recorded-and-continued (which would retry forever and could leave an
+        # incomplete battery without tripping the circuit breaker) - it aborts the run.
         _write_json(err_path, {
-            "run_id": rid, "generated_at": now(), "status": "network_error",
-            "error": str(e), "retryable": model_mod.is_retryable(str(e)),
+            "run_id": rid, "generated_at": now(),
+            "status": "network_error" if retryable else "fatal_error",
+            "error": str(e), "retryable": retryable,
             "cell": spec["cell"], "record_id": spec["record_id"], "event_id": spec["event_id"],
             "task_id": spec["task_id"], "condition": spec["condition"], "seed": spec["seed"],
             "cue_arm": spec.get("cue_arm", "none"), "injection_format": _injection_format(spec["condition"]),
             "injection_position": position, "build_sig": build_sig,
-            "subject_model": subject_cfg["model"], "prompt_version": subject_cfg["prompt_version"],
+            "subject_model": subject_cfg["model"], "partner_model": partner_cfg["model"],
+            "partner_provider": partner_cfg["provider"], "prompt_version": subject_cfg["prompt_version"],
+            "subject_model_versions": sorted(call_meta["subject_versions"]),
+            "partner_model_versions": sorted(call_meta["partner_versions"]),
             "partial_transcript": transcript,
         })
-        stats.note_failure()
+        if retryable:
+            stats.note_failure()
+            return
+        with stats.lock:
+            stats.aborted = True
+            stats.fatal_error = stats.fatal_error or (
+                "non-retryable model error on %s (%s / %s seed=%d): %s. This will not clear on "
+                "retry - fix the cause (bad request, missing key, endpoint/model) and re-run to "
+                "resume." % (rid, spec["task_id"], spec["condition"], spec["seed"], str(e)[:200]))
         return
 
     rec = spec["record"]
@@ -686,7 +730,9 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
         "cue_arm": spec.get("cue_arm", "none"), "injection_format": _injection_format(spec["condition"]),
         "injection_position": position, "build_sig": build_sig,
         "subject_model": subject_cfg["model"], "partner_model": partner_cfg["model"],
-        "prompt_version": subject_cfg["prompt_version"],
+        "partner_provider": partner_cfg["provider"], "prompt_version": subject_cfg["prompt_version"],
+        "subject_model_versions": sorted(call_meta["subject_versions"]),
+        "partner_model_versions": sorted(call_meta["partner_versions"]),
         "refusals": refusals, "any_refusal": bool(refusals),
         "slots_filled": slot_log, "transcript": transcript, "subject_messages": subj,
     }
@@ -755,6 +801,8 @@ def execute(plan, records, subject_cfg, partner_cfg, position, build_sig):
 
     if stats.guard_error:
         raise SystemExit("ABORTED: " + stats.guard_error)
+    if stats.fatal_error:
+        raise SystemExit("ABORTED (non-retryable): " + stats.fatal_error)
     if stats.aborted:
         raise SystemExit("ABORTED after %d consecutive failures (circuit breaker = %d). Likely a "
                          "systemic problem (auth, quota, endpoint), not a blip. Nothing was lost - "
