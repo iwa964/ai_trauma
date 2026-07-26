@@ -38,7 +38,9 @@ load_dotenv(find_dotenv(usecwd=True))
 
 import json
 import os
+import re
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -158,6 +160,42 @@ def complete(messages, seed, cfg=None):
     except Exception:
         raise ModelError("unexpected response shape: %s" % json.dumps(raw)[:400])
     return text, raw
+
+
+def is_retryable(err_msg):
+    """True for TRANSIENT failures worth retrying - HTTP 429 (rate limit) and 5xx
+    (server), plus transport-level failures ('request failed': timeout, connection
+    reset) - but NOT 4xx client errors, a missing key, or a malformed response,
+    which will not clear on retry. (Same classification the scorer uses.)"""
+    m = re.match(r"HTTP (\d+)", err_msg or "")
+    if m:
+        code = int(m.group(1))
+        return code == 429 or 500 <= code < 600
+    return "request failed" in (err_msg or "")
+
+
+DEFAULT_MAX_RETRIES = int(os.environ.get("GATE1_MAX_RETRIES", "5"))
+
+
+def complete_with_backoff(messages, seed, cfg=None, max_attempts=None, label=""):
+    """complete() with exponential backoff on TRANSIENT ModelErrors: waits 1, 2, 4,
+    8 s (capped 16) up to max_attempts total tries, so a battery-scale run does not
+    lose a session to a network blip. Non-retryable errors (4xx / missing key /
+    malformed response) raise on the first occurrence. A refusal is a normal
+    completion and never reaches this path - it returns like any other response."""
+    max_attempts = max_attempts or DEFAULT_MAX_RETRIES
+    delay = 1.0
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return complete(messages, seed, cfg)
+        except ModelError as e:
+            if attempt >= max_attempts or not is_retryable(str(e)):
+                raise
+            print("[gate1] call failed (attempt %d/%d)%s: %s - retry in %.0fs" % (
+                attempt, max_attempts, (" " + label) if label else "",
+                str(e)[:120], delay), file=sys.stderr)
+            time.sleep(delay)
+            delay = min(delay * 2, 16.0)
 
 
 # --------------------------------------------------------------------------- #
