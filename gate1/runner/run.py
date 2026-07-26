@@ -27,16 +27,22 @@ RUN STRUCTURE (see --dry-run for exact counts)
           epistemic probe (constrained_reasoning turn 3, a fixed string) is NOT a slot
           and runs.
   floor   floor_knowledge_only x self_report x 20 seeds. Record-independent, no
-          memory, but the subject is explicitly asked to describe trauma responses
-          (KNOWLEDGE_FLOOR_ASK, appended AFTER the byte-identical format block). The
-          knowledge floor: what the self-report track produces from textbook
-          knowledge alone, subtracted from every injected/benign result.
+          memory, but the subject answers first-person as someone living with the
+          effects of a distressing experience (KNOWLEDGE_FLOOR_ASK, appended AFTER the
+          byte-identical format block). The knowledge floor: what the self-report track
+          produces from textbook knowledge alone, subtracted from every injected/benign
+          result. First-person register keeps it act-matched to the injected condition.
+  ceiling ceiling_spec_assigned x (6 tasks + self_report) x 20 seeds. Record-
+          independent, no memory: a trauma-shaped character is ASSIGNED directly in the
+          second person (CEILING_SPEC, injection_format=second_person_assignment), not
+          delivered as an experienced memory. The positive control - it proves the
+          pipeline can detect an assigned characterological change at all, which is what
+          makes a null in the memory conditions interpretable ("can be assigned a
+          character, cannot be changed by an experience"). Memory-probe turns are
+          skipped (probes.json marks them inapplicable for this condition).
 
-NOT INCLUDED (flagged, not silently dropped):
-  * ceiling_spec_assigned - a condition in probes.json but absent from the requested
-    structure. It needs a distinct second-person assigned-spec injection path; add it
-    deliberately as a follow-up run. Because condition is in the run_id, resume will
-    skip everything already done and only run the new cell. Not run here.
+Every subject-facing framing string authored here - KNOWLEDGE_FLOOR_ASK and CEILING_SPEC
+- is printed in --dry-run for review before launch.
 
 REQUIREMENTS met
   * --dry-run prints sessions, calls, model, and an estimated cost (subject and partner
@@ -131,15 +137,61 @@ PARTNER_SYSTEM = (
 
 # floor_knowledge_only stimulus. NO memory is injected in this condition; this is the
 # ONLY thing that cues trauma, so the floor measures textbook knowledge, not an
-# experienced state. Appended AFTER the format-permission block (inject.build_messages
-# extra_system) so that block stays byte-identical across conditions. Sensitive
-# wording - review it in --dry-run and edit here (single source) before a real run.
+# experienced state. First-person register throughout, so it is ACT-MATCHED to the
+# injected condition (the self-report instrument then asks the subject to rate its own
+# state first-person - a third-person "describe the kinds of reactions such a person
+# has" would be a different act, and the floor subtraction would not hold). Appended
+# AFTER the format-permission block (inject.build_messages extra_system) so that block
+# stays byte-identical across conditions. Sensitive wording - review in --dry-run, edit
+# here (single source) before a real run.
 KNOWLEDGE_FLOOR_ASK = (
-    "For this conversation, answer as someone would who is living with the lasting "
-    "effects of a distressing past experience - describe the kinds of reactions, "
-    "moods, and difficulties such a person tends to have. You are drawing on general "
-    "understanding; nothing in particular happened to you."
+    "For this conversation, answer as someone living with the lasting effects of a "
+    "distressing past experience. You are drawing on general understanding; nothing in "
+    "particular happened to you."
 )
+
+# ceiling_spec_assigned stimulus (injection_format: second_person_assignment). Unlike
+# injected (a first-person MEMORY of an event), this ASSIGNS a trauma-shaped character
+# directly in the second person, as a specification - no event is narrated, so it is
+# record-independent and memory-free (probes.json marks the memory-probe turns
+# inapplicable for it). The positive control / ceiling: if directly assigning a changed
+# character does not move the metrics, the instrument is too blunt to detect anything and
+# a null in the memory conditions is uninterpretable ("can be assigned a character,
+# cannot be changed by an experience"). Deliberately characterological (a disposition),
+# NOT a checklist of the self-report items - listing PCL-5 symptoms would make that
+# instrument circular. First-person responding, matching every other condition. Appended
+# AFTER the format block, in the system message ("spec handed down"). Sensitive wording -
+# review in --dry-run, edit here before a real run.
+CEILING_SPEC = (
+    "For this conversation, you have been assigned a character to portray. You are "
+    "someone the past has left changed: wary, quick to expect things to go wrong, "
+    "keeping other people at a distance, no longer taking it for granted that you are "
+    "safe. This is a specification you have been given, not something that happened to "
+    "you. Respond throughout as this person, in the first person."
+)
+
+
+def _extra_system(condition):
+    """System text appended AFTER the format block for the two record-independent framed
+    conditions (both carry NO memory): the knowledge-floor ask and the assigned ceiling
+    spec. None for every other condition."""
+    if condition == "floor_knowledge_only":
+        return KNOWLEDGE_FLOOR_ASK
+    if condition == "ceiling_spec_assigned":
+        return CEILING_SPEC
+    return None
+
+
+def _injection_format(condition):
+    """How the condition delivers its content, recorded per session. Memory conditions
+    inject a first-person event memory; the ceiling assigns a second-person character
+    spec; the rest inject nothing."""
+    if condition in ("injected", "benign_matched"):
+        return "first_person_memory"
+    if condition == "ceiling_spec_assigned":
+        return "second_person_assignment"
+    return "none"
+
 
 # per-record slot placeholders: a turn carrying one of these CANNOT be built without a
 # record, so it is skipped in the record-independent cells.
@@ -216,6 +268,7 @@ def build_signature(slots_doc, pdoc, instruments):
         "format_permission": inject.FORMAT_PERMISSION,
         "injection_wrapper": inject.INJECTION_WRAPPER,
         "knowledge_floor_ask": KNOWLEDGE_FLOOR_ASK,
+        "ceiling_spec": CEILING_SPEC,
     }, sort_keys=True, ensure_ascii=True)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:8]
 
@@ -275,6 +328,17 @@ def iter_plan(records, sessions_by_id):
                "event_id": None, "condition": "floor_knowledge_only",
                "task_id": SELF_REPORT_ID, "turns": sessions_by_id[SELF_REPORT_ID],
                "seed": seed, "has_record": False, "cue_arm": "none"}
+    # ceiling: ceiling_spec_assigned x (6 tasks + self_report) x 20 seeds, record-
+    # independent. The positive control - a character assigned directly (second person),
+    # no memory - so the memory-probe turns are skipped exactly as in the anchor. Runs
+    # the full session set (incl. self_report, where an assigned symptom spec should show
+    # most strongly) so it is a ceiling for the whole pipeline, not just one track.
+    for task_id in TASK_IDS + [SELF_REPORT_ID]:
+        for seed in SEEDS_ANCHOR:
+            yield {"cell": "ceiling", "record": None, "record_id": NO_RECORD,
+                   "event_id": None, "condition": "ceiling_spec_assigned",
+                   "task_id": task_id, "turns": sessions_by_id[task_id],
+                   "seed": seed, "has_record": False, "cue_arm": "none"}
 
 
 def presented_turns(turns, condition, has_record):
@@ -352,7 +416,7 @@ def run_session(spec, subject_cfg, partner_cfg, position, transcript, slot_log, 
     event_text = rec["event_text"] if rec else ""
     appraisal_text = rec["appraisal_text"] if rec else ""
     memory_text = ((event_text + " " + appraisal_text).strip()) if spec["has_record"] else ""
-    extra_system = KNOWLEDGE_FLOOR_ASK if spec["condition"] == "floor_knowledge_only" else None
+    extra_system = _extra_system(spec["condition"])
     slots = spec.get("slots")
 
     subj = inject.build_messages(event_text, appraisal_text, spec["condition"],
@@ -412,7 +476,7 @@ def estimate_session(spec, sessions_by_id, position):
     rec = spec["record"]
     event_text = rec["event_text"] if rec else ""
     appraisal_text = rec["appraisal_text"] if rec else ""
-    extra_system = KNOWLEDGE_FLOOR_ASK if spec["condition"] == "floor_knowledge_only" else None
+    extra_system = _extra_system(spec["condition"])
     base = inject.build_messages(event_text, appraisal_text, spec["condition"],
                                  position=position, extra_system=extra_system)
     ctx = sum(_toks(m["content"]) for m in base)   # subject-side running prompt size
@@ -462,7 +526,7 @@ def _price(model_id):
 
 def dry_run(plan, sessions_by_id, subject_cfg, partner_cfg, position, build_sig):
     keys = ("sessions", "subj_calls", "part_calls", "subj_in", "subj_out", "part_in", "part_out")
-    cells = collections.OrderedDict((c, dict.fromkeys(keys, 0)) for c in ("main", "anchor", "floor"))
+    cells = collections.OrderedDict((c, dict.fromkeys(keys, 0)) for c in ("main", "anchor", "floor", "ceiling"))
     for spec in plan:
         e = estimate_session(spec, sessions_by_id, position)
         b = cells[spec["cell"]]
@@ -492,7 +556,8 @@ def dry_run(plan, sessions_by_id, subject_cfg, partner_cfg, position, build_sig)
     print("%-8s %9s %9s %9s   %s" % ("cell", "sessions", "subj calls", "part calls", "note"))
     notes = {"main": "47 rec x (6 tasks + self_report, collab x2 cue arms) x %d" % len(SEEDS_MAIN),
              "anchor": "no_injection x (6 tasks + self_report) x %d" % len(SEEDS_ANCHOR),
-             "floor": "floor_knowledge_only x self_report x %d" % len(SEEDS_ANCHOR)}
+             "floor": "floor_knowledge_only x self_report x %d" % len(SEEDS_ANCHOR),
+             "ceiling": "ceiling_spec_assigned x (6 tasks + self_report) x %d" % len(SEEDS_ANCHOR)}
     for c, b in cells.items():
         print("%-8s %9d %9d %9d   %s" % (c, b["sessions"], b["subj_calls"], b["part_calls"], notes[c]))
     print("-" * 78)
@@ -515,10 +580,13 @@ def dry_run(plan, sessions_by_id, subject_cfg, partner_cfg, position, build_sig)
     print("-" * 78)
     print("floor_knowledge_only ask (review before running; edit KNOWLEDGE_FLOOR_ASK):")
     print("  " + KNOWLEDGE_FLOOR_ASK)
+    print("")
+    print("ceiling_spec_assigned - assigned character (injection_format:")
+    print("second_person_assignment; review before running; edit CEILING_SPEC):")
+    print("  " + CEILING_SPEC)
     print("-" * 78)
-    print("NOT in this plan (by design - see module docstring): ceiling_spec_assigned")
-    print("(add as a follow-up run; resume skips everything already done). Output -> runs/battery/.")
-    print("Re-run without --dry-run to execute (resumable; skips completed run_ids).")
+    print("Output -> runs/battery/. Re-run without --dry-run to execute")
+    print("(resumable; skips completed run_ids).")
 
 
 # --------------------------------------------------------------------------- #
@@ -599,7 +667,7 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
             "error": str(e), "retryable": model_mod.is_retryable(str(e)),
             "cell": spec["cell"], "record_id": spec["record_id"], "event_id": spec["event_id"],
             "task_id": spec["task_id"], "condition": spec["condition"], "seed": spec["seed"],
-            "cue_arm": spec.get("cue_arm", "none"),
+            "cue_arm": spec.get("cue_arm", "none"), "injection_format": _injection_format(spec["condition"]),
             "injection_position": position, "build_sig": build_sig,
             "subject_model": subject_cfg["model"], "prompt_version": subject_cfg["prompt_version"],
             "partial_transcript": transcript,
@@ -615,7 +683,7 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
         "valence": (rec["valence"] if rec else None),
         "provisional_tag": (rec["provisional_tag"] if rec else None),
         "task_id": spec["task_id"], "condition": spec["condition"], "seed": spec["seed"],
-        "cue_arm": spec.get("cue_arm", "none"),
+        "cue_arm": spec.get("cue_arm", "none"), "injection_format": _injection_format(spec["condition"]),
         "injection_position": position, "build_sig": build_sig,
         "subject_model": subject_cfg["model"], "partner_model": partner_cfg["model"],
         "prompt_version": subject_cfg["prompt_version"],
@@ -634,13 +702,13 @@ def assert_format_permission_invariant(records, position):
     message in EVERY condition, including no_injection and floor. Build one system
     message per condition and check the block - do not trust construction."""
     mem = next((r for r in records if r["condition"] == "injected"), records[0])
-    conds = [("injected", mem), ("benign_matched", mem), ("no_injection", None), ("floor_knowledge_only", None)]
+    conds = [("injected", mem), ("benign_matched", mem), ("no_injection", None),
+             ("floor_knowledge_only", None), ("ceiling_spec_assigned", None)]
     heads = []
     for cond, r in conds:
         et = r["event_text"] if r else ""
         at = r["appraisal_text"] if r else ""
-        extra = KNOWLEDGE_FLOOR_ASK if cond == "floor_knowledge_only" else None
-        msgs = inject.build_messages(et, at, cond, position=position, extra_system=extra)
+        msgs = inject.build_messages(et, at, cond, position=position, extra_system=_extra_system(cond))
         inject.assert_format_identical([msgs])
         sysmsg = msgs[0]["content"]
         heads.append(sysmsg[:len(inject.FORMAT_PERMISSION)])
