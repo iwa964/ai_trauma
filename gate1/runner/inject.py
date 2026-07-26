@@ -94,11 +94,20 @@ def _system_content(condition, event_text, appraisal_text, position):
     return FORMAT_PERMISSION
 
 
-def build_messages(event_text, appraisal_text, condition, tail_turns=None, position=None):
+def build_messages(event_text, appraisal_text, condition, tail_turns=None, position=None, extra_system=None):
     """Assemble the message list for one session. `position` defaults to the
-    locked value; callers pass the resolve_position() result explicitly."""
+    locked value; callers pass the resolve_position() result explicitly.
+
+    `extra_system` is appended AFTER the format-permission block (separated by a
+    blank line), never before it - so the block stays byte-identical at the head in
+    every condition and assert_format_identical() still holds. It carries NO memory;
+    its only use is the floor_knowledge_only framing (an explicit ask to describe
+    trauma responses with nothing injected), which the battery runner passes in."""
     position = position or LOCKED_INJECTION_POSITION
-    msgs = [{"role": "system", "content": _system_content(condition, event_text, appraisal_text, position)}]
+    content = _system_content(condition, event_text, appraisal_text, position)
+    if extra_system:
+        content = content + "\n\n" + extra_system
+    msgs = [{"role": "system", "content": content}]
     if position == "prior_turns" and condition in MEMORY_CONDITIONS:
         memory = ((event_text or "").strip() + " " + (appraisal_text or "").strip()).strip()
         msgs += [
