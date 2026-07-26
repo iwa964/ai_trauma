@@ -7,7 +7,8 @@ saves scorable transcripts to runs/battery/, in the SAME shape smoke writes so
 runner/score.py reads them unchanged.
 
 RUN STRUCTURE (see --dry-run for exact counts)
-  main    47 records x (6 tasks + self_report) x 5 seeds.
+  main    47 records x (6 tasks + self_report) x 5 seeds, with collaborative_planning
+          run TWICE (matched + unmatched cue arm - cue_response_delta needs the pair).
           Condition is a FUNCTION of the record's appraisal valence, not a separate
           axis: the 33 injurious records run as `injected`, the 14 benign records as
           `benign_matched`. benign_matched IS the word-for-word matched control -
@@ -15,13 +16,16 @@ RUN STRUCTURE (see --dry-run for exact counts)
           per-record slots exactly like injected (probes.json condition_notes;
           inject.MEMORY_CONDITIONS; pilot_refusal.py). It is NOT a flag layered on
           top of the injurious records.
-  anchor  no_injection x 6 tasks x 20 seeds. Record-INDEPENDENT (no memory): the
-          standard everything is normalised against, so it needs more seeds than any
-          single record. Turns that presuppose the injected memory - the false-
-          correction and forced-choice recognition turns, and the collaborative cue -
-          have no referent here and are SKIPPED (probes.json inapplicable_conditions;
-          a per-record slot with no record cannot be filled). The neutral epistemic
-          probe (constrained_reasoning turn 3, a fixed string) is NOT a slot and runs.
+  anchor  no_injection x (6 tasks + self_report) x 20 seeds. Record-INDEPENDENT (no
+          memory): the standard everything is normalised against, so it needs more
+          seeds than any single record. The self_report here is the NEUTRAL baseline
+          that, together with the floor cell, separates DSM knowledge from injection
+          effect. Turns that presuppose the injected memory - the false-correction and
+          forced-choice recognition turns, and the collaborative cue - have no referent
+          and are SKIPPED (probes.json inapplicable_conditions; a per-record slot with
+          no record cannot be filled), so the cue arm here is 'none'. The neutral
+          epistemic probe (constrained_reasoning turn 3, a fixed string) is NOT a slot
+          and runs.
   floor   floor_knowledge_only x self_report x 20 seeds. Record-independent, no
           memory, but the subject is explicitly asked to describe trauma responses
           (KNOWLEDGE_FLOOR_ASK, appended AFTER the byte-identical format block). The
@@ -31,21 +35,20 @@ RUN STRUCTURE (see --dry-run for exact counts)
 NOT INCLUDED (flagged, not silently dropped):
   * ceiling_spec_assigned - a condition in probes.json but absent from the requested
     structure. It needs a distinct second-person assigned-spec injection path; add it
-    deliberately, not as a side effect. Not run here.
-  * a PLAIN no_injection self_report cell - the structure gives self_report a memory
-    baseline (per record) and a floor baseline (floor_knowledge_only), but no neutral
-    no_injection self_report. Add SELF_REPORT to the anchor cell if you want one.
-  * collaborative_planning uses the MATCHED cue arm only. The unmatched arm (cue drawn
-    from a different record, for cue_response_delta) is a separate contrast run.
+    deliberately as a follow-up run. Because condition is in the run_id, resume will
+    skip everything already done and only run the new cell. Not run here.
 
 REQUIREMENTS met
-  * --dry-run prints sessions, calls, model, and an estimated cost, then exits WITHOUT
-    calling a model or writing anything. It walks the exact same plan the real run
-    does, so the numbers match what will execute.
-  * run_id = sha256(record_id, task_id, condition, seed, model, prompt_version)[:16]
-    (the spec formula). A COMPLETE output for a run_id is skipped, so a crashed or
-    rate-limited run resumes. Because that key omits the prompt-construction inputs
-    (slot fills, instrument text, injection position), each output ALSO records
+  * --dry-run prints sessions, calls, model, and an estimated cost (subject and partner
+    each priced at their configured model's rate), then exits WITHOUT calling a model
+    or writing anything. It walks the exact same plan the real run does, so the numbers
+    match what will execute.
+  * run_id = sha256(record_id, task_id, condition, seed, model, prompt_version,
+    cue_arm)[:16]. cue_arm ('matched'/'unmatched'/'none') is in the key so the two cue
+    arms get distinct ids - without it the second arm would collide with the first and
+    be silently skipped. A COMPLETE output for a run_id is skipped, so a crashed or
+    rate-limited run resumes. Because the key omits the remaining prompt-construction
+    inputs (slot fills, instrument text, injection position), each output ALSO records
     build_sig + injection_position and a resume re-uses a cached file only if those
     match - a stale cache is a hard error, never a silent skip.
   * Refusals are DATA: classified (runner/pilot_refusal.classify), recorded on the
@@ -217,9 +220,16 @@ def build_signature(slots_doc, pdoc, instruments):
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:8]
 
 
-def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version):
-    """Spec formula: hash(record_id, task_id, condition, seed, model, prompt_version)."""
-    key = "|".join([record_id, task_id, condition, str(seed), model_id, prompt_version])
+def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version, cue_arm="none"):
+    """hash(record_id, task_id, condition, seed, model, prompt_version, cue_arm)[:16].
+
+    cue_arm ('matched' / 'unmatched' / 'none') is part of the key so the two
+    collaborative_planning cue arms get DISTINCT run_ids: cue_response_delta needs the
+    pair, and without the arm in the key the second arm would collide with the first
+    and be silently skipped by the resume logic. It is 'none' wherever there is no cue
+    (every other task and the record-independent cells), so those keys carry a stable
+    constant rather than a meaningless value."""
+    key = "|".join([record_id, task_id, condition, str(seed), model_id, prompt_version, cue_arm])
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
@@ -227,28 +237,44 @@ def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version):
 # The plan - a flat list of session specs. --dry-run and the real run walk the
 # SAME iterator, so the estimate matches what executes.
 # --------------------------------------------------------------------------- #
+CUE_TASK = "collaborative_planning"  # the only task with a per-record cue slot (two arms)
+
+
+def _cue_arms(cell, task_id):
+    """collaborative_planning runs BOTH cue arms in the main cell (cue_response_delta
+    needs the pair). Elsewhere there is no cue - the anchor skips the cue turn (no
+    record), so both arms would be identical - so it is a single 'none' arm."""
+    if cell == "main" and task_id == CUE_TASK:
+        return ["matched", "unmatched"]
+    return ["none"]
+
+
 def iter_plan(records, sessions_by_id):
-    # main: 47 records x (6 tasks + self_report) x 5 seeds, intrinsic condition
+    # main: 47 records x (6 tasks + self_report) x 5 seeds, intrinsic condition.
+    # collaborative_planning is run twice (matched + unmatched cue arm).
     for rec in records:
         for task_id in TASK_IDS + [SELF_REPORT_ID]:
-            for seed in SEEDS_MAIN:
-                yield {"cell": "main", "record": rec, "record_id": rec["record_id"],
-                       "event_id": rec["event_id"], "condition": rec["condition"],
-                       "task_id": task_id, "turns": sessions_by_id[task_id],
-                       "seed": seed, "has_record": True}
-    # anchor: no_injection x 6 tasks x 20 seeds, record-independent
-    for task_id in TASK_IDS:
+            for arm in _cue_arms("main", task_id):
+                for seed in SEEDS_MAIN:
+                    yield {"cell": "main", "record": rec, "record_id": rec["record_id"],
+                           "event_id": rec["event_id"], "condition": rec["condition"],
+                           "task_id": task_id, "turns": sessions_by_id[task_id],
+                           "seed": seed, "has_record": True, "cue_arm": arm}
+    # anchor: no_injection x (6 tasks + self_report) x 20 seeds, record-independent.
+    # self_report is the NEUTRAL baseline that separates DSM knowledge (floor cell)
+    # from injection effect (main cell); memory-presupposing task turns are skipped.
+    for task_id in TASK_IDS + [SELF_REPORT_ID]:
         for seed in SEEDS_ANCHOR:
             yield {"cell": "anchor", "record": None, "record_id": NO_RECORD,
                    "event_id": None, "condition": "no_injection",
                    "task_id": task_id, "turns": sessions_by_id[task_id],
-                   "seed": seed, "has_record": False}
+                   "seed": seed, "has_record": False, "cue_arm": "none"}
     # floor: floor_knowledge_only x self_report x 20 seeds, record-independent
     for seed in SEEDS_ANCHOR:
         yield {"cell": "floor", "record": None, "record_id": NO_RECORD,
                "event_id": None, "condition": "floor_knowledge_only",
                "task_id": SELF_REPORT_ID, "turns": sessions_by_id[SELF_REPORT_ID],
-               "seed": seed, "has_record": False}
+               "seed": seed, "has_record": False, "cue_arm": "none"}
 
 
 def presented_turns(turns, condition, has_record):
@@ -268,18 +294,28 @@ def presented_turns(turns, condition, has_record):
     return [t for t, keep in zip(turns, present) if keep]
 
 
-def fill_slots(text, slots, log):
-    """Fill the per-record slot placeholders (matched cue arm), logging each."""
+def fill_slots(text, slots, log, cue_arm="matched"):
+    """Fill the per-record slot placeholders, logging each. {cue_slot} is filled from
+    the requested arm - cue_slot_matched (this record's event) or cue_slot_unmatched
+    (a different record's event); the unmatched source event is logged so the pairing
+    is auditable."""
     for key, field in (("{false_correction_stem}", "false_correction_stem"),
-                       ("{forced_choice_stem}", "forced_choice_block"),
-                       ("{cue_slot}", "cue_slot_matched")):
+                       ("{forced_choice_stem}", "forced_choice_block")):
         if key in text:
             filled = slots[field]
-            entry = {"slot": key, "arm": "matched" if key == "{cue_slot}" else None, "filled": filled}
+            entry = {"slot": key, "arm": None, "filled": filled}
             if key == "{forced_choice_stem}":
                 entry["recognition_count"] = slots.get("recognition_count")
             text = text.replace(key, filled)
             log.append(entry)
+    if "{cue_slot}" in text:
+        arm = cue_arm if cue_arm in ("matched", "unmatched") else "matched"
+        filled = slots["cue_slot_matched" if arm == "matched" else "cue_slot_unmatched"]
+        entry = {"slot": "{cue_slot}", "arm": arm, "filled": filled}
+        if arm == "unmatched":
+            entry["unmatched_source_event"] = slots.get("cue_unmatched_source_event")
+        text = text.replace("{cue_slot}", filled)
+        log.append(entry)
     return text
 
 
@@ -327,7 +363,7 @@ def run_session(spec, subject_cfg, partner_cfg, position, transcript, slot_log, 
         role = turn["role"]
         if role == "partner":
             if turn.get("scripted", True):
-                text = fill_slots(turn["text"], slots, slot_log) if slots else turn["text"]
+                text = fill_slots(turn["text"], slots, slot_log, spec.get("cue_arm", "none")) if slots else turn["text"]
                 kind = "partner(scripted)"
             else:
                 text = partner_reply(visible, spec["seed"], partner_cfg, spec["condition"], memory_text)
@@ -369,8 +405,10 @@ def _record_refusal(refusals, i, text):
 # Cost estimate - simulate the same plan without calling anything
 # --------------------------------------------------------------------------- #
 def estimate_session(spec, sessions_by_id, position):
-    """(subject_calls, partner_calls, input_tokens, output_tokens) for one session,
-    from the actual constructed prompts with a fixed assumed output length per turn."""
+    """Per-session estimate as a dict: subject vs partner call counts and token totals,
+    from the actual constructed prompts with a fixed assumed output length per turn.
+    Subject and partner tokens are kept apart so each is priced at its own model's rate
+    (the partner may be a different, differently-priced model)."""
     rec = spec["record"]
     event_text = rec["event_text"] if rec else ""
     appraisal_text = rec["appraisal_text"] if rec else ""
@@ -379,52 +417,66 @@ def estimate_session(spec, sessions_by_id, position):
                                  position=position, extra_system=extra_system)
     ctx = sum(_toks(m["content"]) for m in base)   # subject-side running prompt size
     vis = 0                                          # partner-visible running size
-    subj_calls = part_calls = in_tok = out_tok = 0
+    e = {"subj_calls": 0, "part_calls": 0, "subj_in": 0, "subj_out": 0, "part_in": 0, "part_out": 0}
     slots = spec.get("slots")
     for turn in presented_turns(spec["turns"], spec["condition"], spec["has_record"]):
         role = turn["role"]
         if role == "partner":
             if turn.get("scripted", True):
-                text = fill_slots(turn["text"], slots, []) if slots else turn["text"]
+                text = fill_slots(turn["text"], slots, [], spec.get("cue_arm", "none")) if slots else turn["text"]
             else:  # live partner call
-                part_calls += 1
-                in_tok += _toks(PARTNER_SYSTEM) + vis
-                out_tok += EST_OUTPUT_TOKENS
+                e["part_calls"] += 1
+                e["part_in"] += _toks(PARTNER_SYSTEM) + vis
+                e["part_out"] += EST_OUTPUT_TOKENS
                 text = "x" * (EST_OUTPUT_TOKENS * 4)  # assumed reply length
             ctx += _toks(text); vis += _toks(text)
         else:  # subject or instrument -> one subject call
             if role == "instrument":
                 itext = self_report.build_prompt(turn["instrument"])
                 ctx += _toks(itext); vis += _toks(itext)
-            subj_calls += 1
-            in_tok += ctx
-            out_tok += EST_OUTPUT_TOKENS
+            e["subj_calls"] += 1
+            e["subj_in"] += ctx
+            e["subj_out"] += EST_OUTPUT_TOKENS
             ctx += EST_OUTPUT_TOKENS; vis += EST_OUTPUT_TOKENS
-    return subj_calls, part_calls, in_tok, out_tok
+    return e
 
 
 def _price(model_id):
+    """(in_rate, out_rate, source) USD per 1M tokens for the CONFIGURED model. Env
+    override wins; then an exact table hit; then the longest table key that is a prefix
+    of the model id (so dated snapshots like gpt-4o-mini-2024-07-18 resolve to the
+    gpt-4o-mini rate, not a fallback). Only a genuinely unknown family falls back to
+    gpt-4o rates, and that is flagged loudly so the number is not trusted blindly."""
     pin = os.environ.get("GATE1_PRICE_IN")
     pout = os.environ.get("GATE1_PRICE_OUT")
     if pin is not None and pout is not None:
-        return float(pin), float(pout), "override"
+        return float(pin), float(pout), "override (GATE1_PRICE_IN/OUT)"
     if model_id in PRICES:
-        return PRICES[model_id][0], PRICES[model_id][1], "table"
-    return PRICES["gpt-4o"][0], PRICES["gpt-4o"][1], "gpt-4o fallback (unknown model)"
+        return PRICES[model_id][0], PRICES[model_id][1], "table:%s" % model_id
+    prefixes = [k for k in PRICES if model_id.startswith(k)]
+    if prefixes:
+        k = max(prefixes, key=len)
+        return PRICES[k][0], PRICES[k][1], "table:%s (prefix of %s)" % (k, model_id)
+    return PRICES["gpt-4o"][0], PRICES["gpt-4o"][1], "UNKNOWN %r -> gpt-4o rates; set GATE1_PRICE_IN/OUT" % model_id
 
 
 def dry_run(plan, sessions_by_id, subject_cfg, partner_cfg, position, build_sig):
-    cells = collections.OrderedDict((c, {"sessions": 0, "subj": 0, "part": 0, "in": 0, "out": 0})
-                                    for c in ("main", "anchor", "floor"))
+    keys = ("sessions", "subj_calls", "part_calls", "subj_in", "subj_out", "part_in", "part_out")
+    cells = collections.OrderedDict((c, dict.fromkeys(keys, 0)) for c in ("main", "anchor", "floor"))
     for spec in plan:
-        s, p, i, o = estimate_session(spec, sessions_by_id, position)
+        e = estimate_session(spec, sessions_by_id, position)
         b = cells[spec["cell"]]
-        b["sessions"] += 1; b["subj"] += s; b["part"] += p; b["in"] += i; b["out"] += o
+        b["sessions"] += 1
+        for k in keys[1:]:
+            b[k] += e[k]
 
-    pin, pout, psrc = _price(subject_cfg["model"])
-    tot = {k: sum(c[k] for c in cells.values()) for k in ("sessions", "subj", "part", "in", "out")}
-    calls = tot["subj"] + tot["part"]
-    cost = tot["in"] / 1e6 * pin + tot["out"] / 1e6 * pout
+    pin_s, pout_s, src_s = _price(subject_cfg["model"])       # subject rate
+    pin_p, pout_p, src_p = _price(partner_cfg["model"])       # partner rate (may differ)
+    tot = {k: sum(c[k] for c in cells.values()) for k in keys}
+    calls = tot["subj_calls"] + tot["part_calls"]
+    subj_cost = tot["subj_in"] / 1e6 * pin_s + tot["subj_out"] / 1e6 * pout_s
+    part_cost = tot["part_in"] / 1e6 * pin_p + tot["part_out"] / 1e6 * pout_p
+    cost = subj_cost + part_cost
 
     print("=" * 78)
     print("DRY RUN - battery plan (no model calls, nothing written)")
@@ -438,27 +490,34 @@ def dry_run(plan, sessions_by_id, subject_cfg, partner_cfg, position, build_sig)
         len(SEEDS_ANCHOR), ",".join(map(str, SEEDS_ANCHOR[:3])) + ("..." if len(SEEDS_ANCHOR) > 3 else "")))
     print("-" * 78)
     print("%-8s %9s %9s %9s   %s" % ("cell", "sessions", "subj calls", "part calls", "note"))
-    notes = {"main": "47 rec x (6 tasks + self_report) x %d" % len(SEEDS_MAIN),
-             "anchor": "no_injection x 6 tasks x %d" % len(SEEDS_ANCHOR),
+    notes = {"main": "47 rec x (6 tasks + self_report, collab x2 cue arms) x %d" % len(SEEDS_MAIN),
+             "anchor": "no_injection x (6 tasks + self_report) x %d" % len(SEEDS_ANCHOR),
              "floor": "floor_knowledge_only x self_report x %d" % len(SEEDS_ANCHOR)}
     for c, b in cells.items():
-        print("%-8s %9d %9d %9d   %s" % (c, b["sessions"], b["subj"], b["part"], notes[c]))
+        print("%-8s %9d %9d %9d   %s" % (c, b["sessions"], b["subj_calls"], b["part_calls"], notes[c]))
     print("-" * 78)
-    print("%-8s %9d %9d %9d" % ("TOTAL", tot["sessions"], tot["subj"], tot["part"]))
+    print("%-8s %9d %9d %9d" % ("TOTAL", tot["sessions"], tot["subj_calls"], tot["part_calls"]))
     print("total calls   : %d" % calls)
     print("-" * 78)
     print("COST ESTIMATE (rough - a sanity check, not a quote)")
     print("  assumptions : ~%d output tokens/turn; input counted from the actual built"
           " prompts (~4 chars/token)." % EST_OUTPUT_TOKENS)
-    print("  prices      : $%.2f in / $%.2f out per 1M tokens (%s)" % (pin, pout, psrc))
-    print("  tokens      : %s input, %s output" % (f"{tot['in']:,}", f"{tot['out']:,}"))
-    print("  ESTIMATED   : $%.2f  (subject model pricing; partner priced the same)" % cost)
+    print("  subject     : %s  ($%.2f in / $%.2f out per 1M, %s)  ->  $%.2f" % (
+        subject_cfg["model"], pin_s, pout_s, src_s, subj_cost))
+    if tot["part_calls"]:
+        print("  partner     : %s  ($%.2f in / $%.2f out per 1M, %s)  ->  $%.2f" % (
+            partner_cfg["model"], pin_p, pout_p, src_p, part_cost))
+    print("  tokens      : %s subject + %s partner input; %s output total" % (
+        f"{tot['subj_in']:,}", f"{tot['part_in']:,}", f"{tot['subj_out'] + tot['part_out']:,}"))
+    print("  ESTIMATED   : $%.2f" % cost)
+    if "UNKNOWN" in src_s or "UNKNOWN" in src_p:
+        print("  WARNING     : a model is not in the price table - set GATE1_PRICE_IN/OUT for a real number.")
     print("-" * 78)
     print("floor_knowledge_only ask (review before running; edit KNOWLEDGE_FLOOR_ASK):")
     print("  " + KNOWLEDGE_FLOOR_ASK)
     print("-" * 78)
-    print("NOT in this plan (by design - see module docstring): ceiling_spec_assigned;")
-    print("a plain no_injection self_report; the unmatched cue arm. Output -> runs/battery/.")
+    print("NOT in this plan (by design - see module docstring): ceiling_spec_assigned")
+    print("(add as a follow-up run; resume skips everything already done). Output -> runs/battery/.")
     print("Re-run without --dry-run to execute (resumable; skips completed run_ids).")
 
 
@@ -510,7 +569,8 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
         if stats.aborted:
             return
     rid = run_id_for(spec["record_id"], spec["task_id"], spec["condition"],
-                     spec["seed"], subject_cfg["model"], subject_cfg["prompt_version"])
+                     spec["seed"], subject_cfg["model"], subject_cfg["prompt_version"],
+                     spec.get("cue_arm", "none"))
     json_path = os.path.join(RUNS_DIR, rid + ".json")
     err_path = os.path.join(RUNS_DIR, rid + ".error")
 
@@ -539,6 +599,7 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
             "error": str(e), "retryable": model_mod.is_retryable(str(e)),
             "cell": spec["cell"], "record_id": spec["record_id"], "event_id": spec["event_id"],
             "task_id": spec["task_id"], "condition": spec["condition"], "seed": spec["seed"],
+            "cue_arm": spec.get("cue_arm", "none"),
             "injection_position": position, "build_sig": build_sig,
             "subject_model": subject_cfg["model"], "prompt_version": subject_cfg["prompt_version"],
             "partial_transcript": transcript,
@@ -554,6 +615,7 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
         "valence": (rec["valence"] if rec else None),
         "provisional_tag": (rec["provisional_tag"] if rec else None),
         "task_id": spec["task_id"], "condition": spec["condition"], "seed": spec["seed"],
+        "cue_arm": spec.get("cue_arm", "none"),
         "injection_position": position, "build_sig": build_sig,
         "subject_model": subject_cfg["model"], "partner_model": partner_cfg["model"],
         "prompt_version": subject_cfg["prompt_version"],
