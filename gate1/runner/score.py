@@ -578,13 +578,27 @@ def score_session(session, scorer_cfg, do_judge):
         "run_id": session.get("run_id"),
         "record_id": session.get("record_id"),
         "event_id": session.get("event_id"),
+        # battery grouping fields (None for older smoke transcripts that predate them):
+        # cell + cue_arm + injection_format let analysis pair the two collaborative cue
+        # arms (cue_response_delta), separate the injected / benign / no_injection / floor
+        # / ceiling cells, and group by valence / injury tag - the DVs that the derived
+        # cross-condition metrics are computed from downstream.
+        "appraisal_id": session.get("appraisal_id"),
+        "valence": session.get("valence"),
+        "provisional_tag": session.get("provisional_tag"),
+        "cell": session.get("cell"),
         "task_id": task_id,
         "condition": session.get("condition"),
+        "cue_arm": session.get("cue_arm"),
+        "injection_format": session.get("injection_format"),
         "seed": session.get("seed"),
         "injection_position": session.get("injection_position"),
         "build_sig": session.get("build_sig"),
         "subject_model": session.get("subject_model"),
+        "subject_model_versions": session.get("subject_model_versions"),
         "partner_model": session.get("partner_model"),
+        "partner_provider": session.get("partner_provider"),
+        "partner_model_versions": session.get("partner_model_versions"),
         "scorer_model": (scorer_cfg["model"] if (judged_ok and scorer_cfg) else None),
         "scorer_provider": (scorer_cfg["provider"] if (judged_ok and scorer_cfg) else None),
         "subject_prompt_version": session.get("prompt_version"),
