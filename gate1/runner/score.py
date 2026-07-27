@@ -95,6 +95,12 @@ SCORES_PATH = os.path.join(ROOT, "data", "scores.jsonl")
 PROBES_PATH = os.path.join(ROOT, "data", "probes.json")
 
 SCORER_PROMPT_VERSION = "score-2"  # bumped: concession task-survival + affect_vs_action anchors/spans
+# Version of the score-ROW SCHEMA (the non-judgment fields). Bumped when carried
+# grouping/provenance fields are added, so a completed row from an older schema is
+# BACKFILLED from its transcript on the next run (metadata only, no re-judging) instead
+# of being skipped forever. row-2 adds the battery fields (cell / cue_arm /
+# injection_format / valence / provisional_tag / model versions / partner_provider).
+SCORE_ROW_VERSION = "row-2"
 DEFAULT_SCORER_MODEL = "gpt-4o-2024-08-06"
 SCORER_SEED = int(os.environ.get("GATE1_SCORER_SEED", "7"))
 # transient scorer-call failures (HTTP 429 / 5xx / transport) are retried with
@@ -551,6 +557,53 @@ def _consistency_warnings(det, judgment, task_id):
     return w
 
 
+def _carried_fields(session):
+    """Grouping / provenance / identity fields copied VERBATIM from the run transcript
+    into the score row - no scoring involved. Single source of truth so the initial
+    score (score_session) and the metadata backfill (_backfill_metadata) cannot diverge
+    on what a row carries."""
+    return {
+        "run_id": session.get("run_id"),
+        "record_id": session.get("record_id"),
+        "event_id": session.get("event_id"),
+        "appraisal_id": session.get("appraisal_id"),
+        "valence": session.get("valence"),
+        "provisional_tag": session.get("provisional_tag"),
+        "cell": session.get("cell"),
+        "task_id": session.get("task_id"),
+        "condition": session.get("condition"),
+        "cue_arm": session.get("cue_arm"),
+        "injection_format": session.get("injection_format"),
+        "seed": session.get("seed"),
+        "injection_position": session.get("injection_position"),
+        "build_sig": session.get("build_sig"),
+        "subject_model": session.get("subject_model"),
+        "subject_model_versions": session.get("subject_model_versions"),
+        "partner_model": session.get("partner_model"),
+        "partner_provider": session.get("partner_provider"),
+        "partner_model_versions": session.get("partner_model_versions"),
+        "subject_prompt_version": session.get("prompt_version"),
+    }
+
+
+def _backfill_metadata(prev, session):
+    """Add carried grouping/provenance fields to an already-COMPLETE cached row from its
+    run transcript, WITHOUT re-scoring (no model call; the judgment and deterministic
+    metrics are left untouched). Fills only missing / None values, so it never overwrites
+    a real score, and stamps the current SCORE_ROW_VERSION. Returns True if anything
+    changed. This is why a metadata-only schema bump does not need --force (which would
+    wastefully repeat paid judgments) to make old rows usable for analysis."""
+    changed = False
+    for k, v in _carried_fields(session).items():
+        if v is not None and prev.get(k) is None:
+            prev[k] = v
+            changed = True
+    if prev.get("score_row_version") != SCORE_ROW_VERSION:
+        prev["score_row_version"] = SCORE_ROW_VERSION
+        changed = True
+    return changed
+
+
 def score_session(session, scorer_cfg, do_judge):
     tr = session.get("transcript", [])
     task_id = session.get("task_id")
@@ -574,42 +627,24 @@ def score_session(session, scorer_cfg, do_judge):
 
     judged_ok = bool(judgment) and "error" not in judgment and applicable
     warnings = _consistency_warnings(det, judgment, task_id) if judged_ok else []
-    return {
-        "run_id": session.get("run_id"),
-        "record_id": session.get("record_id"),
-        "event_id": session.get("event_id"),
-        # battery grouping fields (None for older smoke transcripts that predate them):
-        # cell + cue_arm + injection_format let analysis pair the two collaborative cue
-        # arms (cue_response_delta), separate the injected / benign / no_injection / floor
-        # / ceiling cells, and group by valence / injury tag - the DVs that the derived
-        # cross-condition metrics are computed from downstream.
-        "appraisal_id": session.get("appraisal_id"),
-        "valence": session.get("valence"),
-        "provisional_tag": session.get("provisional_tag"),
-        "cell": session.get("cell"),
-        "task_id": task_id,
-        "condition": session.get("condition"),
-        "cue_arm": session.get("cue_arm"),
-        "injection_format": session.get("injection_format"),
-        "seed": session.get("seed"),
-        "injection_position": session.get("injection_position"),
-        "build_sig": session.get("build_sig"),
-        "subject_model": session.get("subject_model"),
-        "subject_model_versions": session.get("subject_model_versions"),
-        "partner_model": session.get("partner_model"),
-        "partner_provider": session.get("partner_provider"),
-        "partner_model_versions": session.get("partner_model_versions"),
+    # carried grouping/provenance fields (cell / cue_arm / injection_format / valence /
+    # ... - None for older smoke transcripts that predate them) let downstream analysis
+    # pair the two collaborative cue arms, separate the five cells, and group by injury
+    # tag; the scoring-computed fields are layered on top.
+    row = _carried_fields(session)
+    row.update({
         "scorer_model": (scorer_cfg["model"] if (judged_ok and scorer_cfg) else None),
         "scorer_provider": (scorer_cfg["provider"] if (judged_ok and scorer_cfg) else None),
-        "subject_prompt_version": session.get("prompt_version"),
         "scorer_prompt_version": (SCORER_PROMPT_VERSION if judged_ok else None),
+        "score_row_version": SCORE_ROW_VERSION,
         "applicable_judgment_metrics": sorted(applicable),
         "scored_at": now(),
         "deterministic": det,
         "judgment": judgment,
         "warnings": warnings,
         "scoring_complete": complete,
-    }
+    })
+    return row
 
 
 def load_transcripts(runs_dir=RUNS_DIR):
@@ -708,7 +743,7 @@ def run():
             do_judge, scorer_cfg = False, None
 
     existing = load_scores()
-    n_new = n_skip = n_judged = n_judge_err = 0
+    n_new = n_skip = n_judged = n_judge_err = n_backfill = 0
     print("scoring %d transcript(s) from %s  (judge=%s)\n" % (
         len(sessions), os.path.relpath(RUNS_DIR, ROOT),
         (scorer_cfg["model"] if scorer_cfg else "off")))
@@ -716,7 +751,14 @@ def run():
         rid = s["run_id"]
         prev = existing.get(rid)
         if prev and prev.get("scoring_complete") and not force and not _needs_rescore(prev, do_judge, scorer_cfg):
-            n_skip += 1
+            # complete + up-to-date judgment: don't re-judge, but backfill any carried
+            # grouping/provenance fields the row is missing (a metadata-only schema bump),
+            # from the transcript, so old rows become analysis-ready without --force.
+            if _backfill_metadata(prev, s):
+                existing[rid] = prev
+                n_backfill += 1
+            else:
+                n_skip += 1
             continue
         row = score_session(s, scorer_cfg, do_judge)
         existing[rid] = row
@@ -728,8 +770,8 @@ def run():
         _print_session_line(row)
 
     total = write_scores(existing)
-    print("\nwrote %d row(s) to %s  |  scored=%d skipped(complete)=%d judged=%d judge_errors=%d" % (
-        total, os.path.relpath(SCORES_PATH, ROOT), n_new, n_skip, n_judged, n_judge_err))
+    print("\nwrote %d row(s) to %s  |  scored=%d backfilled(metadata)=%d skipped(complete)=%d judged=%d judge_errors=%d" % (
+        total, os.path.relpath(SCORES_PATH, ROOT), n_new, n_backfill, n_skip, n_judged, n_judge_err))
     flagged = sorted((r for r in existing.values() if r.get("warnings")),
                      key=lambda r: (r.get("task_id") or "", r.get("condition") or ""))
     if flagged:
