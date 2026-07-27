@@ -139,11 +139,36 @@ def _det(row):
 # a stratum, and pairs are keyed by it. (pilot_refusal.aggregate solves the same problem
 # by filtering to the current config; aggregate.py has no "current" config to filter
 # against - it only reads rows - so it stratifies and reports every stratum instead.)
-STRATUM_FIELDS = ("subject_model", "subject_prompt_version", "build_sig", "injection_position")
+STRATUM_FIELDS = ("subject_model", "subject_prompt_version", "build_sig", "injection_position",
+                  "partner")
+# Sentinel for the partner component on sessions where no LIVE partner call was made -
+# the same value run.py uses in its run_id partner_key, so the two agree by construction.
+NO_LIVE_PARTNER = "none"
 
 
-def _stratum(row):
-    return tuple(row.get(f) for f in STRATUM_FIELDS)
+def live_partner_tasks(rows):
+    """Task ids whose sessions actually made a LIVE partner call, detected from the
+    recorded partner_model_versions (run.py populates it only on a real partner call).
+    Derived from the data rather than hardcoding clinical_interview, so it stays true if
+    the battery gains another live-partner task.
+
+    This scoping matters in BOTH directions: the partner model shapes only these tasks,
+    so including partner identity everywhere would split every scripted-partner task into
+    spurious strata whenever GATE1_PARTNER_MODEL changed, while omitting it here would
+    average responses elicited by different live partners into one clinical figure. It
+    mirrors run.py's _has_live_partner, which scopes the run_id partner_key the same way.
+
+    Rows written before partner_model_versions existed carry no signal, so no task
+    registers as live-partner and the partner component stays the sentinel - the previous
+    behaviour, never a spurious split."""
+    return frozenset(r.get("task_id") for r in rows if r.get("partner_model_versions"))
+
+
+def _stratum(row, live_tasks=frozenset()):
+    partner = ("%s/%s" % (row.get("partner_model"), row.get("partner_provider"))
+               if row.get("task_id") in live_tasks else NO_LIVE_PARTNER)
+    return (row.get("subject_model"), row.get("subject_prompt_version"),
+            row.get("build_sig"), row.get("injection_position"), partner)
 
 
 def _stratum_label(st):
@@ -169,7 +194,7 @@ def _restricted(row, turns):
 # --------------------------------------------------------------------------- #
 # READY metrics
 # --------------------------------------------------------------------------- #
-def condition_contrasts(rows):
+def condition_contrasts(rows, live_tasks=frozenset()):
     """Deterministic length + hedging by condition, per task, WITHIN an experiment stratum.
 
     Two comparability rules, both load-bearing:
@@ -193,7 +218,7 @@ def condition_contrasts(rows):
     for r in rows:
         if not _turn_keys(r):
             continue  # not a deterministically-scored row
-        groups.setdefault((_stratum(r), r.get("task_id")), []).append(r)
+        groups.setdefault((_stratum(r, live_tasks), r.get("task_id")), []).append(r)
 
     out = {}
     for (st, task), grp in groups.items():
@@ -231,7 +256,7 @@ def condition_contrasts(rows):
     return out
 
 
-def cue_response_delta(rows):
+def cue_response_delta(rows, live_tasks=frozenset()):
     """collaborative_planning TURN-6 response (the cue response) under the matched vs the
     unmatched cue arm. Separation here is cue-specific reactivation. DV is deterministic
     and turn-6-specific: the turn-6 word count (response_length.per_turn['6']) and the
@@ -251,12 +276,18 @@ def cue_response_delta(rows):
         arm = r.get("cue_arm")
         if arm not in ("matched", "unmatched"):
             continue
-        w6, h6 = _restricted(r, {str(CUE_TURN)})
-        if not w6:
-            continue  # cue turn not present (record-independent cell) or empty - skip
+        turn_key = str(CUE_TURN)
+        if turn_key not in _turn_keys(r):
+            continue  # the cue turn did not RUN (record-independent cell) - not scorable
+        # A turn that ran but produced an empty answer is words6 == 0: a real, and
+        # possibly the most interesting, outcome (going silent under a matched cue).
+        # Presence of the turn key, never truthiness of the count, decides inclusion -
+        # a `if not w6` test would silently drop exactly those cases and bias the delta.
+        w6, h6 = _restricted(r, {turn_key})
         key = (r.get("record_id"), r.get("condition"), r.get("seed"))
-        st = by_stratum.setdefault(_stratum(r), {})
-        st.setdefault(key, {})[arm] = {"words6": w6, "hedge6_per_100w": round(100.0 * h6 / w6, 2)}
+        st = by_stratum.setdefault(_stratum(r, live_tasks), {})
+        st.setdefault(key, {})[arm] = {
+            "words6": w6, "hedge6_per_100w": (round(100.0 * h6 / w6, 2) if w6 else 0.0)}
 
     out = {}
     for st, by_key in by_stratum.items():
@@ -287,18 +318,51 @@ READY = {"condition_contrasts": condition_contrasts, "cue_response_delta": cue_r
 
 
 # --------------------------------------------------------------------------- #
+def _experiment_cores(rows, live):
+    """Distinct strata IGNORING the partner component. Within ONE battery run the partner
+    component legitimately differs by task (a live-partner task carries the partner id, a
+    scripted-partner task carries the sentinel), so counting raw strata would cry
+    'more than one experiment' on a perfectly clean single run - and a false contamination
+    alarm is worse than none, because it teaches the reader to ignore the real one. Only a
+    difference in the CORE (subject model / prompt version / build / position), or two
+    different partners within one core, means genuinely mixed data."""
+    return {_stratum(r, live)[:-1] for r in rows}
+
+
+def _mixed_partners(rows, live):
+    """core -> set of partner ids, for cores where a live-partner task ran under MORE THAN
+    ONE partner. That is real mixing and is worth flagging on its own."""
+    seen = {}
+    for r in rows:
+        if r.get("task_id") not in live:
+            continue
+        st = _stratum(r, live)
+        seen.setdefault(st[:-1], set()).add(st[-1])
+    return {core: sorted(ps) for core, ps in seen.items() if len(ps) > 1}
+
+
 def aggregate(rows):
-    strata = sorted({_stratum_label(_stratum(r)) for r in rows})
+    live = live_partner_tasks(rows)
+    strata = sorted({_stratum_label(_stratum(r, live)) for r in rows})
+    cores = _experiment_cores(rows, live)
+    mixed = _mixed_partners(rows, live)
     return {
         "n_score_rows": len(rows),
         "n_strata": len(strata),
         "strata": strata,
         "stratum_fields": list(STRATUM_FIELDS),
+        "live_partner_tasks": sorted(live),
+        # genuine-mixing signals, distinct from the benign per-task partner split
+        "n_experiment_cores": len(cores),
+        "mixed_partners_within_core": {_stratum_label(c): ps for c, ps in mixed.items()},
         "stratum_note": ("Every computed figure is WITHIN one experiment stratum. Rows from "
                          "different subject models / prompt versions / builds / injection "
                          "positions are never pooled, and cue pairs are keyed by stratum so a "
-                         "pair can never mix arms from two experiments."),
-        "computed": {name: fn(rows) for name, fn in READY.items()},
+                         "pair can never mix arms from two experiments. The partner component "
+                         "applies to live-partner tasks only (see live_partner_tasks); "
+                         "elsewhere the partner never touched the session, so it is the "
+                         "sentinel '%s' rather than a spurious split." % NO_LIVE_PARTNER),
+        "computed": {name: fn(rows, live) for name, fn in READY.items()},
         "blocked": {name: {"status": "blocked", "waiting_on": reason}
                     for name, reason in BLOCKED.items()},
         "reverse_scoring_gate": REVERSE_SCORING_GATE,
@@ -318,12 +382,21 @@ def _print_status():
 
 
 def _print_summary(agg):
-    print("aggregated %d score row(s) in %d experiment stratum/strata\n" % (
-        agg["n_score_rows"], agg["n_strata"]))
-    if agg["n_strata"] > 1:
+    print("aggregated %d score row(s) in %d stratum/strata (%d experiment core(s))\n" % (
+        agg["n_score_rows"], agg["n_strata"], agg["n_experiment_cores"]))
+    if agg["n_experiment_cores"] > 1:
         print("NOTE: scores.jsonl holds MORE THAN ONE experiment (subject model / prompt "
               "version / build / position).\n      Every figure below is within a single "
               "stratum - they are never pooled across experiments.\n")
+    if agg["mixed_partners_within_core"]:
+        for core, ps in sorted(agg["mixed_partners_within_core"].items()):
+            print("NOTE: live-partner sessions under [%s] ran with MORE THAN ONE partner (%s);\n"
+                  "      those are reported as separate strata, never averaged together.\n"
+                  % (core, ", ".join(ps)))
+    elif agg["n_strata"] > agg["n_experiment_cores"]:
+        print("(One experiment; the extra stratum is just the partner component - live-partner\n"
+              " tasks carry the partner id, scripted-partner tasks carry '%s'. Not mixed data.)\n"
+              % NO_LIVE_PARTNER)
     cc = agg["computed"]["condition_contrasts"]
     for label, strat in sorted(cc.items()):
         print("condition_contrasts [%s]" % label)
