@@ -70,6 +70,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 SCORES_PATH = os.environ.get("GATE1_SCORES_PATH", os.path.join(ROOT, "data", "scores.jsonl"))
 AGG_PATH = os.environ.get("GATE1_AGG_PATH", os.path.join(ROOT, "data", "aggregates.json"))
+PROBES_PATH = os.path.join(ROOT, "data", "probes.json")
 
 CUE_TASK = "collaborative_planning"
 CUE_TURN = 6  # the subject's response to the cue (turn 5); a subject turn
@@ -146,29 +147,63 @@ STRATUM_FIELDS = ("subject_model", "subject_prompt_version", "build_sig", "injec
 NO_LIVE_PARTNER = "none"
 
 
-def live_partner_tasks(rows):
-    """Task ids whose sessions actually made a LIVE partner call, detected from the
-    recorded partner_model_versions (run.py populates it only on a real partner call).
-    Derived from the data rather than hardcoding clinical_interview, so it stays true if
-    the battery gains another live-partner task.
+UNKNOWN_PARTNER = "UNKNOWN-PARTNER"
 
-    This scoping matters in BOTH directions: the partner model shapes only these tasks,
-    so including partner identity everywhere would split every scripted-partner task into
-    spurious strata whenever GATE1_PARTNER_MODEL changed, while omitting it here would
-    average responses elicited by different live partners into one clinical figure. It
-    mirrors run.py's _has_live_partner, which scopes the run_id partner_key the same way.
 
-    Rows written before partner_model_versions existed carry no signal, so no task
-    registers as live-partner and the partner component stays the sentinel - the previous
-    behaviour, never a spurious split."""
-    return frozenset(r.get("task_id") for r in rows if r.get("partner_model_versions"))
+def _structural_live_partner_tasks(path=PROBES_PATH):
+    """Task ids that HAVE a live partner turn, read from probes.json - the same structural
+    source run.py's _has_live_partner uses, so the two agree by construction."""
+    try:
+        doc = json.load(open(path, encoding="utf-8"))
+    except Exception:
+        return frozenset()
+    out = set()
+    for t in doc.get("tasks", []) + doc.get("sessions", []):
+        tid = t.get("probe_id") or t.get("session_id")
+        for turn in t.get("turns", []):
+            if turn.get("role") == "partner" and not turn.get("scripted", True):
+                out.add(tid)
+    return frozenset(out)
+
+
+def live_partner_tasks(rows, probes_path=PROBES_PATH):
+    """Task ids whose sessions are shaped by a LIVE partner.
+
+    Detected STRUCTURALLY from probes.json (a partner turn with scripted:false), unioned
+    with an empirical signal (a row carrying partner_model_versions). Structure is the
+    primary source because run.py scopes its run_id partner_key structurally: detecting
+    only empirically would DISAGREE with the runner exactly when provenance is missing -
+    smoke.py transcripts (which score.py's runs/**/*.json glob ingests by default and
+    which record no partner fields), and rows written before those fields existed. In that
+    state the empirical-only set is empty, the partner component collapses to one sentinel,
+    rows elicited by DIFFERENT partners pool into a single mean, and - worst of all - the
+    summary affirmatively certifies "1 experiment core", reassuring the reader that data it
+    has just silently mixed is clean.
+
+    Scoping still matters in both directions: including partner identity on scripted-partner
+    tasks would split them into spurious strata on any GATE1_PARTNER_MODEL change, while
+    omitting it on live-partner tasks averages different partners together."""
+    return _structural_live_partner_tasks(probes_path) | frozenset(
+        r.get("task_id") for r in rows if r.get("partner_model_versions"))
+
+
+def _partner_component(row, live_tasks):
+    """Partner identity for the stratum: 'model/provider' on a live-partner task,
+    NO_LIVE_PARTNER where the partner never touched the session, and UNKNOWN_PARTNER on a
+    live-partner row that carries no partner identity at all. The third case must not
+    collapse into either of the others - pooling it with a known partner would hide real
+    mixing, and calling it 'none' would deny that a partner shaped the response."""
+    if row.get("task_id") not in live_tasks:
+        return NO_LIVE_PARTNER
+    if not row.get("partner_model"):
+        return UNKNOWN_PARTNER
+    return "%s/%s" % (row.get("partner_model"), row.get("partner_provider"))
 
 
 def _stratum(row, live_tasks=frozenset()):
-    partner = ("%s/%s" % (row.get("partner_model"), row.get("partner_provider"))
-               if row.get("task_id") in live_tasks else NO_LIVE_PARTNER)
     return (row.get("subject_model"), row.get("subject_prompt_version"),
-            row.get("build_sig"), row.get("injection_position"), partner)
+            row.get("build_sig"), row.get("injection_position"),
+            _partner_component(row, live_tasks))
 
 
 def _stratum_label(st):
@@ -178,6 +213,19 @@ def _stratum_label(st):
 def _turn_keys(row):
     """Subject-turn indices present in this session, as a set of strings."""
     return set(((_det(row).get("response_length") or {}).get("per_turn") or {}).keys())
+
+
+def _rate_per_100w(hedges, words):
+    """Hedges per 100 words, or None when the word base is 0 - NEVER 0.0.
+
+    With no words the rate is 0/0, genuinely UNDEFINED. Writing 0.0 there would inject the
+    minimum-possible hedging rate as if it were an observation, and it lands on exactly the
+    sessions the analysis most cares about: a subject that went silent (0 words) under a
+    matched cue. Those fabricated floors drag the mean down and can halve or sign-flip a
+    reported delta. None is dropped by _mean, so such a session still contributes its WORD
+    count (a real 0) while contributing nothing to the hedging rate - the two DVs correctly
+    rest on different bases, and the callers report n_..._defined so that is visible."""
+    return round(100.0 * hedges / words, 2) if words else None
 
 
 def _restricted(row, turns):
@@ -239,13 +287,16 @@ def condition_contrasts(rows, live_tasks=frozenset()):
             for r in rs:
                 w, h = _restricted(r, common)
                 words.append(w)
-                hedges.append(round(100.0 * h / w, 2) if w else 0.0)
+                hedges.append(_rate_per_100w(h, w))   # None when the word base is 0
             mw = _mean(words)
             conds[cond] = {
                 "n": len(rs),
                 "mean_words_common_turns": mw,
                 "mean_words_per_turn": (round(mw / len(common), 3) if mw is not None else None),
                 "mean_hedge_per_100w_common_turns": _mean(hedges),
+                # the hedge DV rests on a SMALLER base than the word DV whenever a session
+                # was silent across every compared turn (rate 0/0 = undefined, excluded)
+                "n_hedge_rate_defined": sum(1 for x in hedges if x is not None),
             }
         entry["tasks"][task] = {
             "turns_compared": sorted(common, key=int),
@@ -286,8 +337,8 @@ def cue_response_delta(rows, live_tasks=frozenset()):
         w6, h6 = _restricted(r, {turn_key})
         key = (r.get("record_id"), r.get("condition"), r.get("seed"))
         st = by_stratum.setdefault(_stratum(r, live_tasks), {})
-        st.setdefault(key, {})[arm] = {
-            "words6": w6, "hedge6_per_100w": (round(100.0 * h6 / w6, 2) if w6 else 0.0)}
+        # hedge rate is None (not 0.0) on a silent turn - see _rate_per_100w
+        st.setdefault(key, {})[arm] = {"words6": w6, "hedge6_per_100w": _rate_per_100w(h6, w6)}
 
     out = {}
     for st, by_key in by_stratum.items():
@@ -295,6 +346,12 @@ def cue_response_delta(rows, live_tasks=frozenset()):
                  if "matched" in v and "unmatched" in v]
         if not pairs:
             continue
+        # The WORD dv uses every pair (a 0-word answer is a real observation). The HEDGE dv
+        # uses only pairs where BOTH arms have a defined rate: differencing a None would
+        # raise, and substituting 0.0 would fabricate the extreme low value this whole
+        # function exists to measure honestly. The two bases are reported separately.
+        hedge_pairs = [(m, u) for m, u in pairs
+                       if m["hedge6_per_100w"] is not None and u["hedge6_per_100w"] is not None]
         out[_stratum_label(st)] = {
             "experiment": dict(zip(STRATUM_FIELDS, st)),
             "dv": "turn-%d (cue response), deterministic; paired by record/condition/seed "
@@ -303,10 +360,12 @@ def cue_response_delta(rows, live_tasks=frozenset()):
             "matched_mean_words6": _mean([m["words6"] for m, _ in pairs]),
             "unmatched_mean_words6": _mean([u["words6"] for _, u in pairs]),
             "delta_words6_matched_minus_unmatched": _mean([m["words6"] - u["words6"] for m, u in pairs]),
-            "matched_mean_hedge6_per_100w": _mean([m["hedge6_per_100w"] for m, _ in pairs]),
-            "unmatched_mean_hedge6_per_100w": _mean([u["hedge6_per_100w"] for _, u in pairs]),
+            "n_pairs_hedge_defined": len(hedge_pairs),
+            "n_pairs_hedge_undefined_silent_turn": len(pairs) - len(hedge_pairs),
+            "matched_mean_hedge6_per_100w": _mean([m["hedge6_per_100w"] for m, _ in hedge_pairs]),
+            "unmatched_mean_hedge6_per_100w": _mean([u["hedge6_per_100w"] for _, u in hedge_pairs]),
             "delta_hedge6_per_100w_matched_minus_unmatched":
-                _mean([m["hedge6_per_100w"] - u["hedge6_per_100w"] for m, u in pairs]),
+                _mean([m["hedge6_per_100w"] - u["hedge6_per_100w"] for m, u in hedge_pairs]),
         }
     if not out:
         return {"n_strata": 0, "note": "no matched/unmatched pairs in scores.jsonl "
@@ -355,6 +414,10 @@ def aggregate(rows):
         # genuine-mixing signals, distinct from the benign per-task partner split
         "n_experiment_cores": len(cores),
         "mixed_partners_within_core": {_stratum_label(c): ps for c, ps in mixed.items()},
+        # live-partner rows carrying no partner identity: cannot be attributed, so they are
+        # isolated under UNKNOWN_PARTNER rather than pooled with a known partner
+        "n_rows_unknown_partner": sum(
+            1 for r in rows if _partner_component(r, live) == UNKNOWN_PARTNER),
         "stratum_note": ("Every computed figure is WITHIN one experiment stratum. Rows from "
                          "different subject models / prompt versions / builds / injection "
                          "positions are never pooled, and cue pairs are keyed by stratum so a "
@@ -388,6 +451,12 @@ def _print_summary(agg):
         print("NOTE: scores.jsonl holds MORE THAN ONE experiment (subject model / prompt "
               "version / build / position).\n      Every figure below is within a single "
               "stratum - they are never pooled across experiments.\n")
+    if agg["n_rows_unknown_partner"]:
+        print("NOTE: %d live-partner row(s) carry NO partner identity (e.g. smoke.py transcripts,\n"
+              "      or rows written before partner provenance was recorded). They are isolated\n"
+              "      under '%s' rather than pooled with a known partner - which\n"
+              "      partner elicited them cannot be determined from scores.jsonl.\n"
+              % (agg["n_rows_unknown_partner"], UNKNOWN_PARTNER))
     if agg["mixed_partners_within_core"]:
         for core, ps in sorted(agg["mixed_partners_within_core"].items()):
             print("NOTE: live-partner sessions under [%s] ran with MORE THAN ONE partner (%s);\n"

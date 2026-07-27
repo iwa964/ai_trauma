@@ -578,12 +578,38 @@ def _carried_fields(session):
         "injection_position": session.get("injection_position"),
         "build_sig": session.get("build_sig"),
         "subject_model": session.get("subject_model"),
+        "subject_provider": session.get("subject_provider"),
         "subject_model_versions": session.get("subject_model_versions"),
         "partner_model": session.get("partner_model"),
         "partner_provider": session.get("partner_provider"),
         "partner_model_versions": session.get("partner_model_versions"),
         "subject_prompt_version": session.get("prompt_version"),
     }
+
+
+def _is_stale_build(prev, session):
+    """True when a cached row's metrics were computed from a DIFFERENT build of the
+    prompts than the transcript now on disk.
+
+    run_id deliberately does NOT include build_sig or injection_position, so after a
+    prompt edit (probes.json / slots.json / instruments.json / the framing strings) the
+    regenerated battery produces transcripts with IDENTICAL run_ids. Without this check
+    the completed-row skip serves the PREVIOUS build's word counts, hedge rates and
+    judgments as if they were the new experiment's - defeating the stale-cache guard
+    run.py enforces on its own outputs, and silently reporting measurements of prompts
+    that no longer exist.
+
+    A row that predates the build_sig field entirely is also treated as stale when the
+    transcript has one: its provenance cannot be established, and stamping the new
+    build_sig onto old metrics (which the metadata backfill would otherwise do) is the
+    more damaging direction - it launders old measurements into the new stratum."""
+    for field in ("build_sig", "injection_position"):
+        now = session.get(field)
+        if now is None:
+            continue                      # transcript predates the field - nothing to check
+        if prev.get(field) != now:
+            return True
+    return False
 
 
 def _backfill_metadata(prev, session):
@@ -648,7 +674,13 @@ def score_session(session, scorer_cfg, do_judge):
 
 
 def load_transcripts(runs_dir=RUNS_DIR):
-    out = []
+    """Every session transcript under runs_dir. Two files sharing a run_id but built from
+    DIFFERENT prompts is a hard error, not a silent pick: the glob is recursive, so an old
+    battery directory left in place alongside a regenerated one puts both builds' copies of
+    the same run_id in scope, and whichever sorts last would quietly become the scored one.
+    Identical duplicates (the same build copied to two paths) are harmless and kept."""
+    out, by_id = [], {}
+    conflicts = []
     for f in sorted(glob.glob(os.path.join(runs_dir, "**", "*.json"), recursive=True)):
         try:
             d = json.load(open(f, encoding="utf-8"))
@@ -657,7 +689,25 @@ def load_transcripts(runs_dir=RUNS_DIR):
             continue
         if "run_id" in d and "transcript" in d and "task_id" in d:
             d["_path"] = f
+            prev = by_id.get(d["run_id"])
+            if prev is not None:
+                sig = (d.get("build_sig"), d.get("injection_position"))
+                psig = (prev.get("build_sig"), prev.get("injection_position"))
+                if sig != psig:
+                    conflicts.append((d["run_id"], prev["_path"], psig, f, sig))
+                continue          # keep the first; a differing duplicate aborts below
+            by_id[d["run_id"]] = d
             out.append(d)
+    if conflicts:
+        lines = ["%s\n    %s  build=%s pos=%s\n    %s  build=%s pos=%s"
+                 % (rid, p1, s1[0], s1[1], p2, s2[0], s2[1])
+                 for rid, p1, s1, p2, s2 in conflicts[:5]]
+        raise SystemExit(
+            "ABORT: %d run_id(s) appear under %s with DIFFERENT build_sig / injection_position - "
+            "two builds of the same sessions are in scope and scoring would silently pick one by "
+            "path order. Move the stale run directory out of the tree, then re-run.\n  %s%s"
+            % (len(conflicts), os.path.relpath(runs_dir, ROOT), "\n  ".join(lines),
+               "\n  ..." if len(conflicts) > 5 else ""))
     return out
 
 
@@ -750,7 +800,9 @@ def run():
     for s in sessions:
         rid = s["run_id"]
         prev = existing.get(rid)
-        if prev and prev.get("scoring_complete") and not force and not _needs_rescore(prev, do_judge, scorer_cfg):
+        if (prev and prev.get("scoring_complete") and not force
+                and not _needs_rescore(prev, do_judge, scorer_cfg)
+                and not _is_stale_build(prev, s)):
             # complete + up-to-date judgment: don't re-judge, but backfill any carried
             # grouping/provenance fields the row is missing (a metadata-only schema bump),
             # from the transcript, so old rows become analysis-ready without --force.
