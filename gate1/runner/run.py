@@ -281,9 +281,17 @@ def _has_live_partner(turns):
 
 
 def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version, cue_arm="none",
-               partner_key="none"):
+               partner_key="none", provider="openai"):
     """hash(record_id, task_id, condition, seed, model, prompt_version, cue_arm,
-    partner_key)[:16].
+    partner_key, provider)[:16].
+
+    provider is in the key because get_config() keeps cfg['model'] at the configured id
+    (e.g. gpt-4o-2024-08-06) even under GATE1_PROVIDER=mock - only the RESPONSE reports
+    mock-model-0. Without the provider a mock run and a real run of the same battery
+    produce IDENTICAL run_ids, the resume guard sees matching build_sig and position, and
+    the real run silently keeps the canned mock text as the subject's responses. That is
+    fabricated data wearing the real model's id, which is the worst failure this harness
+    can have, so mock and real must never share an id.
 
     cue_arm ('matched' / 'unmatched' / 'none') is part of the key so the two
     collaborative_planning cue arms get DISTINCT run_ids: cue_response_delta needs the
@@ -299,7 +307,7 @@ def run_id_for(record_id, task_id, condition, seed, model_id, prompt_version, cu
 
     Both trailing fields default to 'none', a stable constant where they do not apply."""
     key = "|".join([record_id, task_id, condition, str(seed), model_id, prompt_version,
-                    cue_arm, partner_key])
+                    cue_arm, partner_key, provider])
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
@@ -664,7 +672,7 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
                    if _has_live_partner(spec["turns"]) else "none")
     rid = run_id_for(spec["record_id"], spec["task_id"], spec["condition"],
                      spec["seed"], subject_cfg["model"], subject_cfg["prompt_version"],
-                     spec.get("cue_arm", "none"), partner_key)
+                     spec.get("cue_arm", "none"), partner_key, subject_cfg["provider"])
     json_path = os.path.join(RUNS_DIR, rid + ".json")
     err_path = os.path.join(RUNS_DIR, rid + ".error")
 
@@ -702,7 +710,9 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
             "task_id": spec["task_id"], "condition": spec["condition"], "seed": spec["seed"],
             "cue_arm": spec.get("cue_arm", "none"), "injection_format": _injection_format(spec["condition"]),
             "injection_position": position, "build_sig": build_sig,
-            "subject_model": subject_cfg["model"], "partner_model": partner_cfg["model"],
+            "subject_model": subject_cfg["model"], "subject_provider": subject_cfg["provider"],
+            "subject_base_url": subject_cfg.get("base_url"),
+            "partner_model": partner_cfg["model"],
             "partner_provider": partner_cfg["provider"], "prompt_version": subject_cfg["prompt_version"],
             "subject_model_versions": sorted(call_meta["subject_versions"]),
             "partner_model_versions": sorted(call_meta["partner_versions"]),
@@ -729,7 +739,9 @@ def worker(spec, subject_cfg, partner_cfg, position, build_sig, stats):
         "task_id": spec["task_id"], "condition": spec["condition"], "seed": spec["seed"],
         "cue_arm": spec.get("cue_arm", "none"), "injection_format": _injection_format(spec["condition"]),
         "injection_position": position, "build_sig": build_sig,
-        "subject_model": subject_cfg["model"], "partner_model": partner_cfg["model"],
+        "subject_model": subject_cfg["model"], "subject_provider": subject_cfg["provider"],
+        "subject_base_url": subject_cfg.get("base_url"),
+        "partner_model": partner_cfg["model"],
         "partner_provider": partner_cfg["provider"], "prompt_version": subject_cfg["prompt_version"],
         "subject_model_versions": sorted(call_meta["subject_versions"]),
         "partner_model_versions": sorted(call_meta["partner_versions"]),
