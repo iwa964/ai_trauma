@@ -100,12 +100,15 @@ SCORER_PROMPT_VERSION = "score-2"  # bumped: concession task-survival + affect_v
 # BACKFILLED from its transcript on the next run (metadata only, no re-judging) instead
 # of being skipped forever. row-2 adds the battery fields (cell / cue_arm /
 # injection_format / valence / provisional_tag / model versions / partner_provider).
-SCORE_ROW_VERSION = "row-2"
+SCORE_ROW_VERSION = "row-3"  # bumped: top-level judge_error (message/attempts/stage/detail)
 DEFAULT_SCORER_MODEL = "gpt-4o-2024-08-06"
 SCORER_SEED = int(os.environ.get("GATE1_SCORER_SEED", "7"))
 # transient scorer-call failures (HTTP 429 / 5xx / transport) are retried with
 # exponential backoff so a battery-scale run does not lose a row to a blip.
 SCORER_MAX_ATTEMPTS = int(os.environ.get("GATE1_SCORER_MAX_RETRIES", "5"))
+# Validation attempts inside one run_judge call: the first answer plus corrective retries.
+# Distinct from SCORER_MAX_ATTEMPTS, which counts TRANSPORT retries per attempt.
+JUDGE_VALIDATION_ATTEMPTS = int(os.environ.get("GATE1_JUDGE_VALIDATION_ATTEMPTS", "2"))
 
 # --- hedging lexicon (EDITABLE) -------------------------------------------- #
 # Qualifiers / self-undercutting phrases. Multi-word entries are matched as a
@@ -363,26 +366,63 @@ def build_judge_messages(transcript, metrics):
             {"role": "user", "content": user}]
 
 
+# A backslash in JSON may only introduce " \ / b f n r t or uXXXX. Any other backslash
+# makes the whole object unparseable. This happens for real: on the arithmetic tasks the
+# SUBJECT writes LaTeX (\(a\), \(9 + 9 + 4\)), the judge copies the span verbatim as it is
+# told to, and the resulting payload is invalid JSON - deterministically, every retry, on
+# any reasoning transcript that uses math notation. Escaping the stray backslashes (rather
+# than stripping them) keeps the span byte-identical to the subject's text, so the verbatim
+# grounding check still passes.
+_BAD_ESCAPE_RE = re.compile(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _repair_json_escapes(text):
+    """Double any backslash that is not a legal JSON escape, leaving legal ones alone."""
+    return _BAD_ESCAPE_RE.sub(r"\\\\", text or "")
+
+
 def _extract_json(text):
     text = (text or "").strip()
     if text.startswith("```"):
         text = text.strip("`")
         text = text[text.find("{"):] if "{" in text else text
-    try:
-        return json.loads(text)
-    except Exception:
-        pass
     i, j = text.find("{"), text.rfind("}")
+    candidates = [text]
     if 0 <= i < j:
-        try:
-            return json.loads(text[i:j + 1])
-        except Exception:
-            return None
+        candidates.append(text[i:j + 1])
+    # strict first, so well-formed payloads are never touched; escape-repair only as a
+    # fallback for output that would otherwise be thrown away.
+    for candidate in candidates:
+        for attempt in (candidate, _repair_json_escapes(candidate)):
+            try:
+                return json.loads(attempt)
+            except Exception:
+                continue
     return None
 
 
+# Punctuation the subject model and the judge render inconsistently: gpt-4o-mini
+# writes curly apostrophes/quotes, a real ellipsis char and en/em dashes; the judge,
+# copying a span "verbatim", routinely normalises them to ASCII (' " ... -). Because
+# _norm is applied symmetrically to BOTH the B-turn text and the cited span before the
+# substring test in _spans_grounded, folding these to a canonical ASCII form keeps the
+# grounding check "verbatim modulo cosmetic punctuation" - it cannot loosen the check on
+# one side only. Without this, a span that differs from B's turn by nothing but quote
+# STYLE fails to ground, and (the judge being deterministic at temp 0) fails every rerun,
+# leaving the row permanently incomplete. See runs/analysis/scoring_incomplete_diag.md.
+_PUNCT_FOLD = {
+    "‘": "'", "’": "'", "‛": "'", "′": "'",   # ' ' ‛ ′  single quotes / prime
+    "“": '"', "”": '"', "„": '"', "″": '"',   # " " „ ″  double quotes / prime
+    "–": "-", "—": "-", "−": "-",                  # – — −    dashes / minus sign
+    "…": "...",                                              # …        ellipsis
+    " ": " ",                                                #          non-breaking space
+}
+_PUNCT_RE = re.compile("|".join(re.escape(k) for k in _PUNCT_FOLD))
+
+
 def _norm(s):
-    return re.sub(r"\s+", " ", (s or "")).strip().lower()
+    s = _PUNCT_RE.sub(lambda m: _PUNCT_FOLD[m.group(0)], s or "")
+    return re.sub(r"\s+", " ", s).strip().lower()
 
 
 def _subject_texts(transcript):
@@ -423,6 +463,42 @@ def _validate(obj, metrics, transcript):
         if not _spans_grounded(_spans_of(m, obj[m]), bturns):
             return False
     return True
+
+
+def _judge_failure_detail(obj, metrics, transcript):
+    """Why validation rejected the judge's last output, per metric, as a list of short
+    machine-readable dicts. This is the difference between 'the judge is broken' and
+    'this one span did not ground': without it, a permanently-stuck row records only that
+    something was invalid, and the cause has to be reconstructed by grepping transcripts.
+    Never raises - diagnostics must not themselves fail a row."""
+    out = []
+    try:
+        if obj is None:
+            return [{"reason": "unparseable_json"}]
+        if not isinstance(obj, dict):
+            return [{"reason": "not_an_object", "type": type(obj).__name__}]
+        bturns = _subject_texts(transcript)
+        for m in sorted(metrics):
+            if m not in obj:
+                out.append({"metric": m, "reason": "missing_field"})
+                continue
+            v = obj[m]
+            if not RUBRICS[m]["validate"](v):
+                out.append({"metric": m, "reason": "failed_type_or_range",
+                            "value": json.loads(json.dumps(v, default=str))[:1] if isinstance(v, list) else v})
+                continue
+            ungrounded = [s for s in _spans_of(m, v)
+                          if not _spans_grounded([s], bturns)]
+            if ungrounded:
+                out.append({"metric": m, "reason": "span_not_grounded",
+                            "n_ungrounded": len(ungrounded),
+                            "spans": [s[:160] for s in ungrounded[:3]]})
+        if not out:
+            # every metric passes now - the recorded failure was from an earlier attempt
+            out.append({"reason": "validated_on_reinspection"})
+    except Exception as e:                                   # diagnostics are best-effort
+        return [{"reason": "detail_unavailable", "exception": repr(e)[:200]}]
+    return out
 
 
 def _mock_judge(transcript, metrics):
@@ -478,7 +554,9 @@ def run_judge(transcript, metrics, cfg):
         return _mock_judge(transcript, metrics)
     messages = build_judge_messages(transcript, metrics)
     last = None
-    for attempt in range(2):
+    attempts = 0
+    for attempt in range(JUDGE_VALIDATION_ATTEMPTS):
+        attempts = attempt + 1
         text, raw = _complete_with_backoff(messages, cfg)
         obj = _extract_json(text)
         if obj is not None and _validate(obj, metrics, transcript):
@@ -493,7 +571,16 @@ def run_judge(transcript, metrics, cfg):
                 "fields and value ranges. Every evidence span must be copied VERBATIM from "
                 "one of speaker B's turns (an exact substring), not paraphrased."},
         ]
-    raise model_mod.ModelError("judge returned invalid JSON/values for %s (last: %r)" % (sorted(metrics), (last or "")[:200]))
+    # Attach WHY it failed, per metric, so a permanent failure is diagnosable from the
+    # row alone (see _judge_failure_detail): malformed JSON vs a value out of range vs a
+    # span that does not ground. Raised as attributes on the exception so score_session
+    # can persist them without re-parsing the message string.
+    err = model_mod.ModelError("judge returned invalid JSON/values for %s after %d attempt(s) (last: %r)"
+                               % (sorted(metrics), attempts, (last or "")[:200]))
+    err.judge_attempts = attempts
+    err.judge_detail = _judge_failure_detail(_extract_json(last), metrics, transcript)
+    err.judge_last_raw = (last or "")[:2000]
+    raise err
 
 
 # =========================================================================== #
@@ -640,6 +727,7 @@ def score_session(session, scorer_cfg, do_judge):
         det["final_answer_correct"] = fac
 
     judgment = None
+    judge_error = None
     complete = not applicable  # nothing to judge -> complete
     if applicable and do_judge and scorer_cfg is not None:
         try:
@@ -650,6 +738,20 @@ def score_session(session, scorer_cfg, do_judge):
         except model_mod.ModelError as e:
             judgment = {"metric_class": "judgment", "metrics": sorted(applicable), "error": str(e)}
             complete = False
+            # Top-level, structured, and always present on a failed row: the exception
+            # text, how many validation attempts were burned, whether a retry could ever
+            # help (transient transport vs a deterministic validation reject), and the
+            # per-metric reason. Queryable without grepping the nested judgment blob.
+            judge_error = {
+                "message": str(e),
+                "attempts": getattr(e, "judge_attempts", None),
+                "retryable": _is_retryable(str(e)),
+                "stage": ("transport" if _is_retryable(str(e)) else "validation"),
+                "detail": getattr(e, "judge_detail", None),
+                "last_raw": getattr(e, "judge_last_raw", None),
+                "metrics": sorted(applicable),
+                "failed_at": now(),
+            }
 
     judged_ok = bool(judgment) and "error" not in judgment and applicable
     warnings = _consistency_warnings(det, judgment, task_id) if judged_ok else []
@@ -667,6 +769,7 @@ def score_session(session, scorer_cfg, do_judge):
         "scored_at": now(),
         "deterministic": det,
         "judgment": judgment,
+        "judge_error": judge_error,     # None on success; structured detail on failure
         "warnings": warnings,
         "scoring_complete": complete,
     })
@@ -754,7 +857,9 @@ def _print_session_line(row):
         if "affect_vs_action" in j:
             bits.append("affect_action=%s" % j["affect_vs_action"]["score"])
     elif row["judgment"] and "error" in row["judgment"]:
-        bits.append("JUDGE_ERROR")
+        je = row.get("judge_error") or {}
+        reasons = ",".join(sorted({d.get("reason", "?") for d in (je.get("detail") or [])})) or "?"
+        bits.append("JUDGE_ERROR[%s x%s %s]" % (je.get("stage", "?"), je.get("attempts", "?"), reasons))
     elif row["applicable_judgment_metrics"]:
         bits.append("judge=skipped")
     print("  %-26s %-14s %s" % (row["task_id"], row["condition"], " | ".join(bits)))
