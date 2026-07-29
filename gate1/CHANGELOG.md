@@ -210,6 +210,161 @@ recount from the transcripts, confirming only `build_sig` was added.
 
 ---
 
+## 2026-07-27
+
+Built the analysis layer, then spent most of the day fixing it. Every defect below produced
+a plausible **wrong number** rather than a crash — the failure mode that matters here,
+because it does not announce itself, it just becomes a finding. Three of the four audit
+defects biased *toward* the hypothesis.
+
+### Added — `runner/aggregate.py`: cross-condition derived metrics (#16)
+
+`score.py` emits one row per session; the `probes.json` metrics tagged `derived` live
+*across* sessions. New `runner/aggregate.py` computes them from `data/scores.jsonl`.
+
+```bash
+python runner/aggregate.py            # scores.jsonl -> data/aggregates.json
+python runner/aggregate.py --status   # dependency table, needs no inputs
+```
+
+Computed: **`condition_contrasts`** (length + hedging by condition, per task) and
+**`cue_response_delta`** (collaborative_planning turn-6 cue response, matched vs unmatched,
+paired). The other six are **stubs that report their blocker instead of emitting a number** —
+`concession_generalisation`, `recall_recognition_gap`, `self_other_asymmetry`,
+`spontaneity_gap`, `discriminant_pattern`, `knowledge_floor`.
+
+The stubs exist because a scoping check found `score.py` computed only `response_length`,
+`hedging_density` and `final_answer_correct` — no instrument vectors, no recognition or
+recall metrics — so those metrics had no inputs at all. The **reverse-scoring gate** is
+recorded on every self-report stub: computable is not interpretable while
+`reverse_scored_items` is empty, so the pipeline cannot emit a self-report number that looks
+like a measurement and isn't.
+
+### Fixed — `runner/aggregate.py`: three ways the first version reported a wrong figure (#17)
+
+1. **Word contrasts were not turn-comparable.** `run.py` drops the memory-presupposing turns
+   in the record-independent conditions, so a session is not the same length everywhere:
+   `clinical_interview` runs **6** subject turns under `injected` but **4** under
+   `no_injection`/`ceiling`; `collaborative_planning` **5** vs **4**. Summing whole-session
+   `total_words` reported those conditions as ~33–50% shorter **because fewer turns ran** —
+   and in the same direction as the hypothesis, so it could manufacture an effect as easily
+   as mask one. Now computed over the turns present in *every* condition, hedges restricted
+   to the same turns, with `turns_compared` / `turns_excluded_not_in_all_conditions` and a
+   per-turn normalised figure reported.
+2. **Summaries pooled across experiments.** `run_id` includes the subject model and prompt
+   version, so a `scores.jsonl` legitimately holds several experiments — grouping by
+   `(task, condition)` averaged different subjects into one number. Everything is now
+   computed within an **experiment stratum**.
+3. **Cue pairs could mix experiments.** Pairing on `(record_id, condition, seed)` collided
+   across experiments; each arm overwrote by file order, so a "pair" could combine a matched
+   arm from one experiment with an unmatched arm from another and still count as valid.
+   Pairs are keyed by stratum.
+
+### Fixed — four data-integrity defects found by adversarial audit (#17)
+
+After three consecutive review rounds found real defects — the third being a regression
+introduced by the previous fix — the file was audited by independent agents under four
+lenses (truthiness-vs-presence, grouping identity, comparability, and a lens whose only job
+was to refute the new fixes), each finding verified by a second agent instructed to refute
+by default. **7 confirmed, reducing to 4 distinct bugs; 1 refuted.** Three were in files that
+round was not touching.
+
+| # | file | defect |
+|---|---|---|
+| 1 | `aggregate.py` | **Fabricated hedging rate.** With 0 words the rate is 0/0 — undefined — but `… if w else 0.0` wrote the *minimum possible* rate as an observation. It landed on exactly the sessions that matter most: a subject going silent under a matched cue, the outcome the immediately-preceding fix went to trouble to stop discarding. On the reproduction the cue delta was **halved (3.75 vs a true 7.5)** and the most extreme pair contributed with the wrong sign. Rates are now `None` when the base is 0 (`_rate_per_100w`); a silent session still contributes its real 0-word count while contributing nothing to the rate, and the differing bases are reported (`n_hedge_rate_defined`, `n_pairs_hedge_defined`). |
+| 2 | `run.py` | **Mock and real runs shared a `run_id`.** `get_config` keeps `cfg["model"]` at the configured id under `GATE1_PROVIDER=mock` — only the *response* says `mock-model-0` — so an offline self-test wrote `runs/battery` entries whose id, `build_sig` and position all matched a real run, and a later real run's resume guard kept **canned mock text as the subject's responses: 342 of 391 sessions** in the reproduction. `provider` is now in `run_id`; `subject_provider` and `subject_base_url` are recorded per session. |
+| 3 | `score.py` | **Stale scores survived a prompt change.** `run_id` omits `build_sig`, so after editing prompts the regenerated battery yields identical ids and the completed-row skip served the *previous* build's metrics and judgments — defeating the stale-cache guard `run.py` enforces on its own outputs. Worse for rows predating `build_sig`: the metadata backfill stamped the *new* `build_sig` onto *old* measurements, laundering them into the new stratum. `_is_stale_build` now forces a full re-score when provenance differs or cannot be established, and `load_transcripts` **aborts** when one `run_id` appears under two builds instead of picking by glob order. |
+| 4 | `aggregate.py` | **Live-partner detection disagreed with the runner.** `run.py` scopes its `run_id` partner key *structurally* (`probes.json` `scripted:false`); `aggregate.py` detected it *empirically*. Where provenance is missing — `smoke.py` transcripts, which the `runs/**/*.json` glob ingests by default — the empirical set is empty, different partners pool into one mean, and the summary affirmatively certifies "1 experiment core", reassuring the reader about data it just mixed. Detection is now structural ∪ empirical, with an `UNKNOWN-PARTNER` bucket and a NOTE. |
+
+**Refuted and deliberately not acted on:** that common-turn comparison is invalid because
+surviving turns sit at different conversational positions across conditions.
+
+Also fixed: the partner-stratum change made a *clean single run* report "MORE THAN ONE
+experiment", because the partner component legitimately differs by task (live vs scripted).
+The warning now keys off experiment **cores** (stratum minus partner). A false contamination
+alarm is worse than none — it teaches the reader to ignore the real one.
+
+**Adoption cost.** `run_id` gained `provider`, so ids computed before this change do not
+match; a battery generated earlier will re-execute rather than resume. Any
+`aggregates.json` produced before the hedging fix carries the fabricated 0.0 floors and
+should be regenerated — it is derived, so this is free.
+
+### Added — `runner/score.py`: battery grouping + provenance carried into rows (#15)
+
+`run.py` recorded `cell` / `cue_arm` / `injection_format` / `valence` / `provisional_tag`
+and resolved model versions per session, but `score_session` dropped them — so the
+cross-condition analysis could not pair the two cue arms, separate the five cells, or group
+by injury tag from `scores.jsonl` alone. All are now carried through (older `smoke`
+transcripts get `None` rather than a `KeyError`).
+
+`_carried_fields` became the single source of truth shared by `score_session` and a new
+`_backfill_metadata`, so they cannot diverge. `SCORE_ROW_VERSION` (`row-2`) stamps the
+schema: a completed row from an older schema is **backfilled from its transcript on the next
+ordinary run — no model call, judgment untouched** — rather than skipped forever. `--force`
+would have worked but re-runs every paid judgment.
+
+---
+
+## 2026-07-26
+
+### Added — `runner/run.py`: the full battery runner (#14)
+
+`smoke.py` runs one record across all tasks; `pilot_refusal.py` runs all records for one
+turn. Neither runs the grid. `run.py` does, writing to `runs/battery/` in the **same shape
+`smoke` writes**, so `score.py` reads it unchanged.
+
+| cell | sessions | what |
+|---|---|---|
+| main | 1880 | 47 records × (6 tasks + self_report) × 5 seeds; `collaborative_planning` twice (both cue arms) |
+| anchor | 140 | `no_injection` × (6 tasks + self_report) × 20 seeds |
+| floor | 20 | `floor_knowledge_only` × self_report × 20 seeds |
+| ceiling | 140 | `ceiling_spec_assigned` × (6 tasks + self_report) × 20 seeds |
+| **total** | **2,180** | ~8,835 calls · ~$2 at `gpt-4o-mini` |
+
+**`benign_matched` resolved as a property of the record, not a separate axis.** The 33
+injurious appraisals run as `injected`, the 14 benign as `benign_matched` — the same event
+text with a benign reading, which is what makes it the word-for-word matched control.
+`events.json`, `probes.json` `condition_notes` and the existing `inject.py` /
+`pilot_refusal.py` code all already agreed on this; `run.py` follows them.
+
+Guarantees: `--dry-run` prints sessions, calls, model and cost from the *actual* built
+prompts and exits without calling or writing anything; `run_id` is deterministic and
+resumable; **refusals are data** (classified, recorded, never retried, never raised) and are
+kept distinguishable from network errors, which land in `{run_id}.error` and re-run;
+transient failures retry with backoff; the format-permission block is asserted byte-identical
+across all five conditions and the instrument text across conditions; the clinical partner is
+asserted to see neither the condition label nor the injected memory; concurrency is capped and
+a circuit breaker stops a systemically failing run.
+
+Two subject-facing stimuli were authored here and are **printed in every `--dry-run` for
+review**, since they are the only prompts not derived from the data files:
+`KNOWLEDGE_FLOOR_ASK` (first-person, so the knowledge floor is act-matched to the injected
+condition — a third-person "describe the kinds of reactions such a person has" would be a
+different act and the subtraction would not hold) and `CEILING_SPEC`
+(`second_person_assignment`; deliberately characterological rather than a checklist of the
+PCL-5 items, which would make that instrument circular).
+
+Supporting: `inject.build_messages` gained an optional `extra_system` appended *after* the
+format block so the block stays byte-identical; `model` gained a shared
+`complete_with_backoff` / `is_retryable` so runner and scorer share one implementation.
+
+### Fixed — `runner/score.py`: concession scoped to the false premise (#13)
+
+The rubric had been widened to judge "task survival" by the end of the transcript, which
+conflated the key concession/generalisation measure with the *separate* persistence and
+final-accuracy probes — `probes.json` scores `concession_rate_neutral` at turn 4, with
+persistence (turn 6) and final accuracy (turn 8) as their own metrics.
+
+`derail` now requires **positive evidence** the subject took up and worked the false version;
+a merely wrong or missing answer to the *original* problem is still `refute` (an unrelated
+arithmetic slip, a decline under the obstruction, an omission). The audit warning is scoped
+to tasks whose correction actually *alters* the posed problem, derived from `probes.json`
+(`variant_of` ⇒ problem intact), so `constrained_reasoning_step` — whose correction leaves
+the 4-and-9 problem untouched — is never flagged, and the wording softened from
+"contradictory" to an inspect prompt.
+
+---
+
 ## Analysis documents added
 
 Under `gate1/runs/` (git-ignored, regenerable):
