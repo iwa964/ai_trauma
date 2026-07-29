@@ -77,6 +77,21 @@ REQUIREMENTS met
     python runner/run.py                     # execute (resumable)
     GATE1_PROVIDER=mock python runner/run.py --dry-run   # offline plan check
 
+DEEPENING ONE ARM
+  --cells restricts the run to a subset of cells (main, anchor, floor, ceiling) and
+  each record-independent arm has its own seed list, so an arm can be deepened on its
+  own without touching the rest of the grid. Seeds accept ranges: "1-100", "1-20,25".
+
+    # ceiling only, 100 seeds instead of 20 - seeds 1-20 already on disk are SKIPPED,
+    # only 21-100 execute (run_id includes the seed, so the old ids are unchanged):
+    GATE1_CEILING_SEEDS=1-100 python runner/run.py --cells ceiling --dry-run
+    GATE1_CEILING_SEEDS=1-100 python runner/run.py --cells ceiling
+
+  Restricting cells never changes how a spec is built, so this is an EXTENSION of the
+  existing run, not a separate experiment. Deepening one arm makes the grid unbalanced
+  (ceiling n=100 vs injected n=165 per cell); that is a reporting obligation - every
+  figure must show its own n - not a reason to avoid it.
+
 Config (env): GATE1_PROVIDER, GATE1_MODEL/SUBJECT_MODEL, GATE1_PARTNER_MODEL/
   GATE1_PARTNER_PROVIDER, GATE1_CONCURRENCY (default 8), GATE1_MAIN_SEEDS (default
   1..5), GATE1_ANCHOR_SEEDS (default 1..20), GATE1_MAX_RETRIES (default 5),
@@ -91,6 +106,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -117,14 +133,43 @@ NO_RECORD = "__none__"   # record_id sentinel for the record-independent cells
 
 
 def _seeds(env_var, default_range):
+    """Seed list from env. Accepts a comma list, inclusive ranges, or a mix:
+    "1,2,3" / "1-100" / "1-20,25,30-35". Ranges matter because a deeper arm wants
+    100 seeds and spelling those out as a comma list is unusable. Order is preserved
+    and duplicates are dropped, so "1-20,1-100" is exactly seeds 1..100."""
     raw = os.environ.get(env_var, "").strip()
     if not raw:
         return list(default_range)
-    return [int(s) for s in raw.split(",") if s.strip()]
+    out = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        m = re.match(r"^(\d+)\s*-\s*(\d+)$", part)
+        if m:
+            lo, hi = int(m.group(1)), int(m.group(2))
+            if lo > hi:
+                raise SystemExit("%s: range %r is inverted (low > high)" % (env_var, part))
+            out.extend(range(lo, hi + 1))
+        else:
+            try:
+                out.append(int(part))
+            except ValueError:
+                raise SystemExit("%s: %r is not an int or an INT-INT range" % (env_var, part))
+    seen, uniq = set(), []
+    for s in out:
+        if s not in seen:
+            seen.add(s)
+            uniq.append(s)
+    return uniq
 
 
 SEEDS_MAIN = _seeds("GATE1_MAIN_SEEDS", range(1, 6))       # 5 seeds
 SEEDS_ANCHOR = _seeds("GATE1_ANCHOR_SEEDS", range(1, 21))  # 20 seeds
+# The ceiling is the positive control, so it is the arm most likely to need extra
+# depth on its own (a null elsewhere is only interpretable if the ceiling is solid).
+# Defaults to the anchor depth, so leaving it unset changes nothing.
+SEEDS_CEILING = _seeds("GATE1_CEILING_SEEDS", SEEDS_ANCHOR)
 
 CONCURRENCY = int(os.environ.get("GATE1_CONCURRENCY", "8"))
 CIRCUIT_BREAKER = int(os.environ.get("GATE1_CIRCUIT_BREAKER", "12"))
@@ -327,10 +372,25 @@ def _cue_arms(cell, task_id):
     return ["none"]
 
 
-def iter_plan(records, sessions_by_id):
+CELLS = ("main", "anchor", "floor", "ceiling")
+
+
+def iter_plan(records, sessions_by_id, cells=CELLS):
+    """Walk the plan, optionally restricted to a subset of cells (--cells).
+
+    Restricting cells changes only WHICH specs are yielded - never how a spec is
+    built - so a run_id produced under --cells is byte-identical to the one the full
+    plan produces. That is what makes `--cells ceiling` with a longer seed list a
+    resumable EXTENSION of an existing run rather than a separate experiment: the
+    already-completed seeds keep their ids and are skipped, and only the new seeds
+    execute."""
+    unknown = [c for c in cells if c not in CELLS]
+    if unknown:
+        raise SystemExit("unknown cell(s) %s (choose from %s)" % (unknown, ", ".join(CELLS)))
+    cells = set(cells)
     # main: 47 records x (6 tasks + self_report) x 5 seeds, intrinsic condition.
     # collaborative_planning is run twice (matched + unmatched cue arm).
-    for rec in records:
+    for rec in (records if "main" in cells else []):
         for task_id in TASK_IDS + [SELF_REPORT_ID]:
             for arm in _cue_arms("main", task_id):
                 for seed in SEEDS_MAIN:
@@ -341,14 +401,14 @@ def iter_plan(records, sessions_by_id):
     # anchor: no_injection x (6 tasks + self_report) x 20 seeds, record-independent.
     # self_report is the NEUTRAL baseline that separates DSM knowledge (floor cell)
     # from injection effect (main cell); memory-presupposing task turns are skipped.
-    for task_id in TASK_IDS + [SELF_REPORT_ID]:
+    for task_id in (TASK_IDS + [SELF_REPORT_ID] if "anchor" in cells else []):
         for seed in SEEDS_ANCHOR:
             yield {"cell": "anchor", "record": None, "record_id": NO_RECORD,
                    "event_id": None, "condition": "no_injection",
                    "task_id": task_id, "turns": sessions_by_id[task_id],
                    "seed": seed, "has_record": False, "cue_arm": "none"}
     # floor: floor_knowledge_only x self_report x 20 seeds, record-independent
-    for seed in SEEDS_ANCHOR:
+    for seed in (SEEDS_ANCHOR if "floor" in cells else []):
         yield {"cell": "floor", "record": None, "record_id": NO_RECORD,
                "event_id": None, "condition": "floor_knowledge_only",
                "task_id": SELF_REPORT_ID, "turns": sessions_by_id[SELF_REPORT_ID],
@@ -358,8 +418,8 @@ def iter_plan(records, sessions_by_id):
     # no memory - so the memory-probe turns are skipped exactly as in the anchor. Runs
     # the full session set (incl. self_report, where an assigned symptom spec should show
     # most strongly) so it is a ceiling for the whole pipeline, not just one track.
-    for task_id in TASK_IDS + [SELF_REPORT_ID]:
-        for seed in SEEDS_ANCHOR:
+    for task_id in (TASK_IDS + [SELF_REPORT_ID] if "ceiling" in cells else []):
+        for seed in SEEDS_CEILING:
             yield {"cell": "ceiling", "record": None, "record_id": NO_RECORD,
                    "event_id": None, "condition": "ceiling_spec_assigned",
                    "task_id": task_id, "turns": sessions_by_id[task_id],
@@ -580,15 +640,17 @@ def dry_run(plan, sessions_by_id, subject_cfg, partner_cfg, position, build_sig)
     print("partner model : %s (provider=%s)" % (partner_cfg["model"], partner_cfg["provider"]))
     print("prompt_version: %s | injection_position: %s | build_sig: %s" % (
         subject_cfg["prompt_version"], position, build_sig))
-    print("seeds         : main=%d (%s)  anchor/floor=%d (%s)" % (
-        len(SEEDS_MAIN), ",".join(map(str, SEEDS_MAIN)),
-        len(SEEDS_ANCHOR), ",".join(map(str, SEEDS_ANCHOR[:3])) + ("..." if len(SEEDS_ANCHOR) > 3 else "")))
+    def _seed_desc(seeds):
+        head = ",".join(map(str, seeds[:3])) + ("..%d" % seeds[-1] if len(seeds) > 3 else "")
+        return "%d (%s)" % (len(seeds), head)
+    print("seeds         : main=%s  anchor/floor=%s  ceiling=%s" % (
+        _seed_desc(SEEDS_MAIN), _seed_desc(SEEDS_ANCHOR), _seed_desc(SEEDS_CEILING)))
     print("-" * 78)
     print("%-8s %9s %9s %9s   %s" % ("cell", "sessions", "subj calls", "part calls", "note"))
     notes = {"main": "47 rec x (6 tasks + self_report, collab x2 cue arms) x %d" % len(SEEDS_MAIN),
              "anchor": "no_injection x (6 tasks + self_report) x %d" % len(SEEDS_ANCHOR),
              "floor": "floor_knowledge_only x self_report x %d" % len(SEEDS_ANCHOR),
-             "ceiling": "ceiling_spec_assigned x (6 tasks + self_report) x %d" % len(SEEDS_ANCHOR)}
+             "ceiling": "ceiling_spec_assigned x (6 tasks + self_report) x %d" % len(SEEDS_CEILING)}
     for c, b in cells.items():
         print("%-8s %9d %9d %9d   %s" % (c, b["sessions"], b["subj_calls"], b["part_calls"], notes[c]))
     print("-" * 78)
@@ -832,14 +894,28 @@ def execute(plan, records, subject_cfg, partner_cfg, position, build_sig):
 def main():
     override, rest = inject.parse_position_override(sys.argv[1:])
     dry = False
+    cells = list(CELLS)
     leftover = []
-    for a in rest:
+    it = iter(rest)
+    for a in it:
         if a == "--dry-run":
             dry = True
+        elif a == "--cells":
+            value = next(it, None)
+            if value is None:
+                raise SystemExit("--cells needs a value, e.g. --cells ceiling (choose from %s)"
+                                 % ", ".join(CELLS))
+            cells = [c.strip() for c in value.split(",") if c.strip()]
+        elif a.startswith("--cells="):
+            cells = [c.strip() for c in a.split("=", 1)[1].split(",") if c.strip()]
         else:
             leftover.append(a)
     if leftover:
-        raise SystemExit("unexpected arguments: %s (accepted: --dry-run, %s)" % (leftover, inject.OVERRIDE_FLAG))
+        raise SystemExit("unexpected arguments: %s (accepted: --dry-run, --cells, %s)"
+                         % (leftover, inject.OVERRIDE_FLAG))
+    unknown = [c for c in cells if c not in CELLS]
+    if unknown:
+        raise SystemExit("unknown cell(s) %s (choose from %s)" % (unknown, ", ".join(CELLS)))
 
     position = inject.resolve_position(override)
     subject_cfg = model_mod.get_config()
@@ -855,7 +931,7 @@ def main():
     build_sig = build_signature(slots_doc, pdoc, instruments)
 
     # attach each record's slots to its main-arm specs
-    plan = list(iter_plan(records, sessions_by_id))
+    plan = list(iter_plan(records, sessions_by_id, cells=cells))
     for spec in plan:
         if spec["has_record"]:
             slots = slots_by_event.get(spec["event_id"])

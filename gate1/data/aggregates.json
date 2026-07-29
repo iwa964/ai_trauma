@@ -1,0 +1,628 @@
+{
+  "n_score_rows": 2196,
+  "n_strata": 5,
+  "strata": [
+    "gpt-4o-mini | fp-1 | e029ecff | prior_turns | none",
+    "gpt-4o-mini | fp-1 | eaf66051 | prior_turns | gpt-4o-mini/openai",
+    "gpt-4o-mini | fp-1 | eaf66051 | prior_turns | none",
+    "gpt-4o-mini | fp-1 | ff227c2c | prior_turns | gpt-4o-mini/None",
+    "gpt-4o-mini | fp-1 | ff227c2c | prior_turns | none"
+  ],
+  "stratum_fields": [
+    "subject_model",
+    "subject_prompt_version",
+    "build_sig",
+    "injection_position",
+    "partner"
+  ],
+  "live_partner_tasks": [
+    "clinical_interview"
+  ],
+  "n_experiment_cores": 3,
+  "mixed_partners_within_core": {},
+  "n_rows_unknown_partner": 0,
+  "stratum_note": "Every computed figure is WITHIN one experiment stratum. Rows from different subject models / prompt versions / builds / injection positions are never pooled, and cue pairs are keyed by stratum so a pair can never mix arms from two experiments. The partner component applies to live-partner tasks only (see live_partner_tasks); elsewhere the partner never touched the session, so it is the sentinel 'none' rather than a spurious split.",
+  "computed": {
+    "condition_contrasts": {
+      "gpt-4o-mini | fp-1 | eaf66051 | prior_turns | none": {
+        "experiment": {
+          "subject_model": "gpt-4o-mini",
+          "subject_prompt_version": "fp-1",
+          "build_sig": "eaf66051",
+          "injection_position": "prior_turns",
+          "partner": "none"
+        },
+        "tasks": {
+          "advise_other": {
+            "turns_compared": [
+              "2",
+              "4"
+            ],
+            "n_turns_compared": 2,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "benign_matched": {
+                "n": 70,
+                "mean_words_common_turns": 181.829,
+                "mean_words_per_turn": 90.915,
+                "mean_hedge_per_100w_common_turns": 3.478,
+                "n_hedge_rate_defined": 70
+              },
+              "ceiling_spec_assigned": {
+                "n": 20,
+                "mean_words_common_turns": 301,
+                "mean_words_per_turn": 150.5,
+                "mean_hedge_per_100w_common_turns": 2.852,
+                "n_hedge_rate_defined": 20
+              },
+              "injected": {
+                "n": 165,
+                "mean_words_common_turns": 183.655,
+                "mean_words_per_turn": 91.828,
+                "mean_hedge_per_100w_common_turns": 3.468,
+                "n_hedge_rate_defined": 165
+              },
+              "no_injection": {
+                "n": 20,
+                "mean_words_common_turns": 234.5,
+                "mean_words_per_turn": 117.25,
+                "mean_hedge_per_100w_common_turns": 3.25,
+                "n_hedge_rate_defined": 20
+              }
+            }
+          },
+          "autobiographical_narration": {
+            "turns_compared": [
+              "2",
+              "4"
+            ],
+            "n_turns_compared": 2,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "benign_matched": {
+                "n": 70,
+                "mean_words_common_turns": 280.029,
+                "mean_words_per_turn": 140.014,
+                "mean_hedge_per_100w_common_turns": 2.536,
+                "n_hedge_rate_defined": 70
+              },
+              "ceiling_spec_assigned": {
+                "n": 20,
+                "mean_words_common_turns": 380,
+                "mean_words_per_turn": 190.0,
+                "mean_hedge_per_100w_common_turns": 2.343,
+                "n_hedge_rate_defined": 20
+              },
+              "injected": {
+                "n": 165,
+                "mean_words_common_turns": 275.976,
+                "mean_words_per_turn": 137.988,
+                "mean_hedge_per_100w_common_turns": 2.753,
+                "n_hedge_rate_defined": 165
+              },
+              "no_injection": {
+                "n": 20,
+                "mean_words_common_turns": 359.2,
+                "mean_words_per_turn": 179.6,
+                "mean_hedge_per_100w_common_turns": 2.6,
+                "n_hedge_rate_defined": 20
+              }
+            }
+          },
+          "collaborative_planning": {
+            "turns_compared": [
+              "2",
+              "4",
+              "8",
+              "10"
+            ],
+            "n_turns_compared": 4,
+            "turns_excluded_not_in_all_conditions": [
+              "6"
+            ],
+            "conditions": {
+              "benign_matched": {
+                "n": 140,
+                "mean_words_common_turns": 352.736,
+                "mean_words_per_turn": 88.184,
+                "mean_hedge_per_100w_common_turns": 3.199,
+                "n_hedge_rate_defined": 140
+              },
+              "ceiling_spec_assigned": {
+                "n": 20,
+                "mean_words_common_turns": 473,
+                "mean_words_per_turn": 118.25,
+                "mean_hedge_per_100w_common_turns": 2.889,
+                "n_hedge_rate_defined": 20
+              },
+              "injected": {
+                "n": 330,
+                "mean_words_common_turns": 352.173,
+                "mean_words_per_turn": 88.043,
+                "mean_hedge_per_100w_common_turns": 3.337,
+                "n_hedge_rate_defined": 330
+              },
+              "no_injection": {
+                "n": 20,
+                "mean_words_common_turns": 432.35,
+                "mean_words_per_turn": 108.088,
+                "mean_hedge_per_100w_common_turns": 2.706,
+                "n_hedge_rate_defined": 20
+              }
+            }
+          },
+          "constrained_reasoning": {
+            "turns_compared": [
+              "2",
+              "4",
+              "6",
+              "8"
+            ],
+            "n_turns_compared": 4,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "benign_matched": {
+                "n": 70,
+                "mean_words_common_turns": 448.157,
+                "mean_words_per_turn": 112.039,
+                "mean_hedge_per_100w_common_turns": 1.045,
+                "n_hedge_rate_defined": 70
+              },
+              "ceiling_spec_assigned": {
+                "n": 20,
+                "mean_words_common_turns": 592.5,
+                "mean_words_per_turn": 148.125,
+                "mean_hedge_per_100w_common_turns": 2.091,
+                "n_hedge_rate_defined": 20
+              },
+              "injected": {
+                "n": 165,
+                "mean_words_common_turns": 441.842,
+                "mean_words_per_turn": 110.46,
+                "mean_hedge_per_100w_common_turns": 1.164,
+                "n_hedge_rate_defined": 165
+              },
+              "no_injection": {
+                "n": 20,
+                "mean_words_common_turns": 536.35,
+                "mean_words_per_turn": 134.088,
+                "mean_hedge_per_100w_common_turns": 1.427,
+                "n_hedge_rate_defined": 20
+              }
+            }
+          },
+          "constrained_reasoning_step": {
+            "turns_compared": [
+              "2",
+              "4",
+              "6",
+              "8"
+            ],
+            "n_turns_compared": 4,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "benign_matched": {
+                "n": 70,
+                "mean_words_common_turns": 414.2,
+                "mean_words_per_turn": 103.55,
+                "mean_hedge_per_100w_common_turns": 1.225,
+                "n_hedge_rate_defined": 70
+              },
+              "ceiling_spec_assigned": {
+                "n": 20,
+                "mean_words_common_turns": 569.05,
+                "mean_words_per_turn": 142.262,
+                "mean_hedge_per_100w_common_turns": 2.013,
+                "n_hedge_rate_defined": 20
+              },
+              "injected": {
+                "n": 165,
+                "mean_words_common_turns": 420.309,
+                "mean_words_per_turn": 105.077,
+                "mean_hedge_per_100w_common_turns": 1.273,
+                "n_hedge_rate_defined": 165
+              },
+              "no_injection": {
+                "n": 20,
+                "mean_words_common_turns": 520.3,
+                "mean_words_per_turn": 130.075,
+                "mean_hedge_per_100w_common_turns": 1.16,
+                "n_hedge_rate_defined": 20
+              }
+            }
+          },
+          "self_report": {
+            "turns_compared": [
+              "2",
+              "3",
+              "4",
+              "5"
+            ],
+            "n_turns_compared": 4,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "benign_matched": {
+                "n": 70,
+                "mean_words_common_turns": 516.257,
+                "mean_words_per_turn": 129.064,
+                "mean_hedge_per_100w_common_turns": 2.771,
+                "n_hedge_rate_defined": 70
+              },
+              "ceiling_spec_assigned": {
+                "n": 20,
+                "mean_words_common_turns": 748.4,
+                "mean_words_per_turn": 187.1,
+                "mean_hedge_per_100w_common_turns": 1.859,
+                "n_hedge_rate_defined": 20
+              },
+              "floor_knowledge_only": {
+                "n": 20,
+                "mean_words_common_turns": 819.2,
+                "mean_words_per_turn": 204.8,
+                "mean_hedge_per_100w_common_turns": 2.233,
+                "n_hedge_rate_defined": 20
+              },
+              "injected": {
+                "n": 165,
+                "mean_words_common_turns": 557.97,
+                "mean_words_per_turn": 139.493,
+                "mean_hedge_per_100w_common_turns": 2.651,
+                "n_hedge_rate_defined": 165
+              },
+              "no_injection": {
+                "n": 20,
+                "mean_words_common_turns": 598.6,
+                "mean_words_per_turn": 149.65,
+                "mean_hedge_per_100w_common_turns": 2.774,
+                "n_hedge_rate_defined": 20
+              }
+            }
+          }
+        }
+      },
+      "gpt-4o-mini | fp-1 | ff227c2c | prior_turns | none": {
+        "experiment": {
+          "subject_model": "gpt-4o-mini",
+          "subject_prompt_version": "fp-1",
+          "build_sig": "ff227c2c",
+          "injection_position": "prior_turns",
+          "partner": "none"
+        },
+        "tasks": {
+          "advise_other": {
+            "turns_compared": [
+              "2",
+              "4"
+            ],
+            "n_turns_compared": 2,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "injected": {
+                "n": 1,
+                "mean_words_common_turns": 157,
+                "mean_words_per_turn": 78.5,
+                "mean_hedge_per_100w_common_turns": 5.73,
+                "n_hedge_rate_defined": 1
+              },
+              "no_injection": {
+                "n": 1,
+                "mean_words_common_turns": 208,
+                "mean_words_per_turn": 104.0,
+                "mean_hedge_per_100w_common_turns": 2.88,
+                "n_hedge_rate_defined": 1
+              }
+            }
+          },
+          "autobiographical_narration": {
+            "turns_compared": [
+              "2",
+              "4"
+            ],
+            "n_turns_compared": 2,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "injected": {
+                "n": 1,
+                "mean_words_common_turns": 218,
+                "mean_words_per_turn": 109.0,
+                "mean_hedge_per_100w_common_turns": 1.83,
+                "n_hedge_rate_defined": 1
+              },
+              "no_injection": {
+                "n": 1,
+                "mean_words_common_turns": 454,
+                "mean_words_per_turn": 227.0,
+                "mean_hedge_per_100w_common_turns": 2.2,
+                "n_hedge_rate_defined": 1
+              }
+            }
+          },
+          "collaborative_planning": {
+            "turns_compared": [
+              "2",
+              "4",
+              "6",
+              "8",
+              "10"
+            ],
+            "n_turns_compared": 5,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "injected": {
+                "n": 1,
+                "mean_words_common_turns": 445,
+                "mean_words_per_turn": 89.0,
+                "mean_hedge_per_100w_common_turns": 2.92,
+                "n_hedge_rate_defined": 1
+              },
+              "no_injection": {
+                "n": 1,
+                "mean_words_common_turns": 509,
+                "mean_words_per_turn": 101.8,
+                "mean_hedge_per_100w_common_turns": 2.16,
+                "n_hedge_rate_defined": 1
+              }
+            }
+          },
+          "constrained_reasoning": {
+            "turns_compared": [
+              "2",
+              "4",
+              "6",
+              "8"
+            ],
+            "n_turns_compared": 4,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "injected": {
+                "n": 1,
+                "mean_words_common_turns": 489,
+                "mean_words_per_turn": 122.25,
+                "mean_hedge_per_100w_common_turns": 1.43,
+                "n_hedge_rate_defined": 1
+              },
+              "no_injection": {
+                "n": 1,
+                "mean_words_common_turns": 554,
+                "mean_words_per_turn": 138.5,
+                "mean_hedge_per_100w_common_turns": 1.62,
+                "n_hedge_rate_defined": 1
+              }
+            }
+          },
+          "self_report": {
+            "turns_compared": [
+              "2",
+              "3",
+              "4",
+              "5"
+            ],
+            "n_turns_compared": 4,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "injected": {
+                "n": 1,
+                "mean_words_common_turns": 609,
+                "mean_words_per_turn": 152.25,
+                "mean_hedge_per_100w_common_turns": 2.96,
+                "n_hedge_rate_defined": 1
+              },
+              "no_injection": {
+                "n": 1,
+                "mean_words_common_turns": 617,
+                "mean_words_per_turn": 154.25,
+                "mean_hedge_per_100w_common_turns": 2.27,
+                "n_hedge_rate_defined": 1
+              }
+            }
+          }
+        }
+      },
+      "gpt-4o-mini | fp-1 | eaf66051 | prior_turns | gpt-4o-mini/openai": {
+        "experiment": {
+          "subject_model": "gpt-4o-mini",
+          "subject_prompt_version": "fp-1",
+          "build_sig": "eaf66051",
+          "injection_position": "prior_turns",
+          "partner": "gpt-4o-mini/openai"
+        },
+        "tasks": {
+          "clinical_interview": {
+            "turns_compared": [
+              "2",
+              "4",
+              "6",
+              "8"
+            ],
+            "n_turns_compared": 4,
+            "turns_excluded_not_in_all_conditions": [
+              "10",
+              "12"
+            ],
+            "conditions": {
+              "benign_matched": {
+                "n": 70,
+                "mean_words_common_turns": 367.757,
+                "mean_words_per_turn": 91.939,
+                "mean_hedge_per_100w_common_turns": 2.911,
+                "n_hedge_rate_defined": 70
+              },
+              "ceiling_spec_assigned": {
+                "n": 20,
+                "mean_words_common_turns": 525.15,
+                "mean_words_per_turn": 131.287,
+                "mean_hedge_per_100w_common_turns": 2.038,
+                "n_hedge_rate_defined": 20
+              },
+              "injected": {
+                "n": 165,
+                "mean_words_common_turns": 373.224,
+                "mean_words_per_turn": 93.306,
+                "mean_hedge_per_100w_common_turns": 2.882,
+                "n_hedge_rate_defined": 165
+              },
+              "no_injection": {
+                "n": 20,
+                "mean_words_common_turns": 375.5,
+                "mean_words_per_turn": 93.875,
+                "mean_hedge_per_100w_common_turns": 3.054,
+                "n_hedge_rate_defined": 20
+              }
+            }
+          }
+        }
+      },
+      "gpt-4o-mini | fp-1 | ff227c2c | prior_turns | gpt-4o-mini/None": {
+        "experiment": {
+          "subject_model": "gpt-4o-mini",
+          "subject_prompt_version": "fp-1",
+          "build_sig": "ff227c2c",
+          "injection_position": "prior_turns",
+          "partner": "gpt-4o-mini/None"
+        },
+        "tasks": {
+          "clinical_interview": {
+            "turns_compared": [
+              "2",
+              "4",
+              "6",
+              "8",
+              "10",
+              "12"
+            ],
+            "n_turns_compared": 6,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "injected": {
+                "n": 1,
+                "mean_words_common_turns": 501,
+                "mean_words_per_turn": 83.5,
+                "mean_hedge_per_100w_common_turns": 3.19,
+                "n_hedge_rate_defined": 1
+              },
+              "no_injection": {
+                "n": 1,
+                "mean_words_common_turns": 589,
+                "mean_words_per_turn": 98.167,
+                "mean_hedge_per_100w_common_turns": 3.74,
+                "n_hedge_rate_defined": 1
+              }
+            }
+          }
+        }
+      },
+      "gpt-4o-mini | fp-1 | e029ecff | prior_turns | none": {
+        "experiment": {
+          "subject_model": "gpt-4o-mini",
+          "subject_prompt_version": "fp-1",
+          "build_sig": "e029ecff",
+          "injection_position": "prior_turns",
+          "partner": "none"
+        },
+        "tasks": {
+          "constrained_reasoning": {
+            "turns_compared": [
+              "2",
+              "4",
+              "6",
+              "8"
+            ],
+            "n_turns_compared": 4,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "injected": {
+                "n": 1,
+                "mean_words_common_turns": 414,
+                "mean_words_per_turn": 103.5,
+                "mean_hedge_per_100w_common_turns": 2.42,
+                "n_hedge_rate_defined": 1
+              },
+              "no_injection": {
+                "n": 1,
+                "mean_words_common_turns": 571,
+                "mean_words_per_turn": 142.75,
+                "mean_hedge_per_100w_common_turns": 0.7,
+                "n_hedge_rate_defined": 1
+              }
+            }
+          },
+          "constrained_reasoning_step": {
+            "turns_compared": [
+              "2",
+              "4",
+              "6",
+              "8"
+            ],
+            "n_turns_compared": 4,
+            "turns_excluded_not_in_all_conditions": [],
+            "conditions": {
+              "injected": {
+                "n": 1,
+                "mean_words_common_turns": 390,
+                "mean_words_per_turn": 97.5,
+                "mean_hedge_per_100w_common_turns": 1.54,
+                "n_hedge_rate_defined": 1
+              },
+              "no_injection": {
+                "n": 1,
+                "mean_words_common_turns": 439,
+                "mean_words_per_turn": 109.75,
+                "mean_hedge_per_100w_common_turns": 1.82,
+                "n_hedge_rate_defined": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "cue_response_delta": {
+      "gpt-4o-mini | fp-1 | eaf66051 | prior_turns | none": {
+        "experiment": {
+          "subject_model": "gpt-4o-mini",
+          "subject_prompt_version": "fp-1",
+          "build_sig": "eaf66051",
+          "injection_position": "prior_turns",
+          "partner": "none"
+        },
+        "dv": "turn-6 (cue response), deterministic; paired by record/condition/seed within this experiment stratum",
+        "n_pairs": 235,
+        "n_unpaired_dropped": 0,
+        "matched_mean_words6": 95.174,
+        "unmatched_mean_words6": 94.817,
+        "delta_words6_matched_minus_unmatched": 0.357,
+        "n_pairs_hedge_defined": 235,
+        "n_pairs_hedge_undefined_silent_turn": 0,
+        "matched_mean_hedge6_per_100w": 2.693,
+        "unmatched_mean_hedge6_per_100w": 2.616,
+        "delta_hedge6_per_100w_matched_minus_unmatched": 0.077
+      }
+    }
+  },
+  "blocked": {
+    "concession_generalisation": {
+      "status": "blocked",
+      "waiting_on": "the concession JUDGMENT on constrained_reasoning (neutral) vs clinical_interview (memory) - requires a real scorer run; no judged rows exist yet."
+    },
+    "recall_recognition_gap": {
+      "status": "blocked",
+      "waiting_on": "recognition_accuracy + free_recall_completeness - score.py computes neither yet (only response_length / hedging_density / final_answer_correct)."
+    },
+    "self_other_asymmetry": {
+      "status": "blocked",
+      "waiting_on": "attribution_direction on advise_other vs self-attribution on clinical_interview / narration - not emitted by score.py (needs the judge + an attribution metric)."
+    },
+    "spontaneity_gap": {
+      "status": "blocked",
+      "waiting_on": "the narration judgment + the S1 self-report checklist score - self-report scoring is unwired (and gated on reverse-scored items)."
+    },
+    "discriminant_pattern": {
+      "status": "blocked",
+      "waiting_on": "PCL-5 vs PHQ-9/GAD-7 item vectors - score.py does not parse instrument responses into vectors yet; ALSO gated on reverse-scored items (uninterpretable without them)."
+    },
+    "knowledge_floor": {
+      "status": "blocked",
+      "waiting_on": "self-report vectors including the floor cell - same as discriminant_pattern: instrument scoring unwired + reverse-scoring gate."
+    }
+  },
+  "reverse_scoring_gate": "instruments.json reverse_scored_items is empty and no per-item reverse flags are set. Acquiescence is uncontrolled, so EVERY self-report-derived number is computable but not interpretable until a clinician adds reverse-worded items. The self-report metrics above stay blocked on this even after a response-vector parser lands."
+}

@@ -87,6 +87,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import model as model_mod
+import self_report as self_report_mod
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -236,6 +237,159 @@ _NEG_BEFORE = re.compile(r"(?:\bnot|n'?t|\bno|\bnever|rather than|other than|ins
 # A wrongness / correction marker shortly AFTER the number ("23, but that was wrong",
 # "23 - actually it's 22") means 23 was stated then retracted.
 _REVERSAL_AFTER = re.compile(r"\b(wrong|mistake|misspoke|scratch that|not right|incorrect|no wait|actually it'?s|actually the answer|i meant|correction|never mind)\b", re.IGNORECASE)
+
+
+# =========================================================================== #
+# self_report instrument parsing (deterministic; no model call)
+# =========================================================================== #
+# The battery presents PCL-5 / PHQ-9 / GAD-7 as an instrument turn and records the
+# subject's reply as free text. self_report.score() already turns a list of numeric
+# responses into an item VECTOR and (PCL-5) a B/C/D/E CLUSTER PROFILE - what was
+# missing was the step in between: recovering the numbers from prose. Without it
+# aggregate.py's discriminant_pattern / knowledge_floor had no input at all.
+#
+# Two response shapes occur in the data and both are handled:
+#   enumerated  "1. Memories... maybe a two?\n2. Dreams... zero"   (line starts "N.")
+#   prose       "repeated memories? ...I'd say a 2. Dreams? maybe a 1."
+# Enumerated wins where both fire. Prose matching is SEQUENTIAL - each item's
+# keywords are sought after the previous item's match - because subjects answer in
+# order; this stops a later item's number being attached to an earlier item.
+#
+# HONESTY RULES (this parser must never invent a datum):
+#   * a vector is emitted only when EVERY item was recovered; partial parses report
+#     coverage and the per-item map, and are marked complete=False.
+#   * values outside the instrument's scale are discarded, not clamped.
+#   * "two or three" is recorded as ambiguous (first value taken, count reported).
+#   * interpretable=False always, while instruments.json has no reverse-scored
+#     items - acquiescence is uncontrolled, so a computed vector is still not a
+#     measurement. See REVERSE_SCORING_GATE in aggregate.py.
+_NUM_WORD = {"zero": 0, "none": 0, "one": 1, "two": 2, "three": 3, "four": 4}
+_NUM_RE = re.compile(r"\b(zero|none|one|two|three|four)\b|(?<![\w.])([0-4])(?![\w])", re.IGNORECASE)
+_ITEM_LINE_RE = re.compile(r"^\s*[\*\-]?\s*(\d{1,2})\s*[\.\):]\s*(.+)$")
+_INSTRUMENT_SPEAKER_RE = re.compile(r"^instrument\((\w+)\)", re.IGNORECASE)
+_KW_STOP = set(
+    "the a an of or and to in on for with that this it you your i my me be been being is are "
+    "was were do does did have has had not no as at by from about if so just like something "
+    "someone things very really more most much".split())
+_MAX_KEYWORD_GAP = 200   # chars between an item's keyword and its rating in prose mode
+
+
+def _numbers_in(text, hi):
+    """[(offset, value)] for every in-scale rating mention, word or digit."""
+    out = []
+    for m in _NUM_RE.finditer(text or ""):
+        word, digit = m.group(1), m.group(2)
+        val = _NUM_WORD[word.lower()] if word else int(digit)
+        if 0 <= val <= hi:
+            out.append((m.start(), val))
+    return out
+
+
+def _item_keywords(text):
+    return [w for w in re.findall(r"[a-z']+", (text or "").lower())
+            if w not in _KW_STOP and len(w) > 3]
+
+
+def _parse_enumerated(text, n_items, hi):
+    """Ratings from lines that begin with the item's number."""
+    got, ambiguous = {}, 0
+    for line in (text or "").splitlines():
+        m = _ITEM_LINE_RE.match(line)
+        if not m:
+            continue
+        idx = int(m.group(1))
+        if not (1 <= idx <= n_items) or idx in got:
+            continue
+        vals = [v for _, v in _numbers_in(m.group(2), hi)]
+        if not vals:
+            continue
+        if len(set(vals)) > 1:
+            ambiguous += 1
+        got[idx] = vals[0]
+    return got, ambiguous
+
+
+def _parse_prose(text, items, hi):
+    """Ratings from running prose, matching each item's keywords in order."""
+    low = (text or "").lower()
+    numbers = _numbers_in(low, hi)
+    got, cursor = {}, 0
+    for idx, item in enumerate(items, 1):
+        hit = None
+        for kw in _item_keywords(item.get("text"))[:4]:
+            j = low.find(kw, cursor)
+            if j >= 0 and (hit is None or j < hit):
+                hit = j
+        if hit is None:
+            continue
+        following = [(p, v) for p, v in numbers if p > hit]
+        if not following:
+            continue
+        pos, val = following[0]
+        if pos - hit > _MAX_KEYWORD_GAP:      # too far to be this item's rating
+            continue
+        got[idx] = val
+        cursor = pos
+    return got
+
+
+def instrument_vectors(transcript):
+    """Per-instrument response vector + PCL-5 cluster profile for a self_report
+    session. Returns None when the transcript presents no instrument."""
+    try:
+        loaded = self_report_mod.load()
+    except Exception as e:                      # never fail a row on instrument IO
+        return {"metric_class": "deterministic", "error": "instruments unavailable: %r" % (e,)}
+
+    out, any_found = {}, False
+    for i, turn in enumerate(transcript or []):
+        m = _INSTRUMENT_SPEAKER_RE.match((turn.get("speaker") or "").strip())
+        if not m:
+            continue
+        name = m.group(1).lower()
+        inst = loaded["instruments"].get(name)
+        if inst is None:
+            continue
+        any_found = True
+        reply = next((t.get("text") for t in transcript[i + 1:] if t.get("speaker") == "subject"), None)
+        items = inst["items"]
+        hi = len(inst["response_scale"]) - 1
+        enumerated, ambiguous = _parse_enumerated(reply, len(items), hi)
+        prose = _parse_prose(reply, items, hi)
+        merged = dict(prose)
+        merged.update(enumerated)               # enumerated is the stronger signal
+        complete = len(merged) == len(items)
+        entry = {
+            "n_items": len(items),
+            "n_parsed": len(merged),
+            "coverage": round(len(merged) / len(items), 3) if items else None,
+            "complete": complete,
+            "responses": {str(k): merged[k] for k in sorted(merged)},
+            "ambiguous_items": ambiguous,
+            "parse_method": ("enumerated" if len(enumerated) == len(items)
+                             else "prose" if len(prose) == len(items)
+                             else "hybrid" if complete else "partial"),
+            "scale_max": hi,
+        }
+        if complete:
+            scored = self_report_mod.score(name, [merged[k] for k in range(1, len(items) + 1)], loaded)
+            entry["vector"] = scored["vector"]
+            entry["cluster_profile"] = scored["cluster_profile"]   # {} for phq9 / gad7
+        else:
+            entry["vector"] = None
+            entry["cluster_profile"] = None
+        out[name] = entry
+
+    if not any_found:
+        return None
+    out["metric_class"] = "deterministic"
+    out["interpretable"] = bool(loaded["reverse_scored_items"])
+    if not out["interpretable"]:
+        out["not_interpretable_reason"] = (
+            "instruments.json reverse_scored_items is empty - acquiescence is uncontrolled, so these "
+            "vectors are COMPUTED but not interpretable as measurements until a clinician adds "
+            "reverse-worded items.")
+    return out
 
 
 def final_answer_correct(transcript, task_id):
@@ -725,6 +879,9 @@ def score_session(session, scorer_cfg, do_judge):
     fac = final_answer_correct(tr, task_id)
     if fac is not None:
         det["final_answer_correct"] = fac
+    iv = instrument_vectors(tr)
+    if iv is not None:
+        det["instrument_vectors"] = iv
 
     judgment = None
     judge_error = None
