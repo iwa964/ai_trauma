@@ -9,5 +9,7 @@ gate1/dist/gate1.fixture.html
 gate1/runs/
 gate1/data/refusal_rates.csv
 gate1/data/scores.jsonl
+gate1/data/scores_jul27.jsonl
 gate1/data/scores1.jsonl
-gate1/data/scores2.jsonl
+gate1/data/scores_jul25smoke.jsonl
+gate1/data/scores_doublecounted.jsonl
